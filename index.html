@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101322">
+<title>Manhwa Flow AI</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--bg:#0d1020;--panel:#171c30;--panel2:#202741;--line:#303a58;--text:#f4f6ff;--muted:#aab3ca;--accent:#8ea4ff;--good:#78d6ad}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:#101526ed;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:14px 16px}
+.head{max-width:1100px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-weight:900;letter-spacing:.7px;font-size:18px}.brand span{color:var(--accent)}.sub{font-size:11px;color:var(--muted)}
+.wrap{max-width:1100px;margin:auto;padding:16px 14px 92px}
+.hero{background:linear-gradient(135deg,#252d50,#171b30 65%);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:16px}
+h1{font-size:25px;line-height:1.15;margin:0 0 8px}h2{font-size:19px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}
+p{color:var(--muted);margin:5px 0 12px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px;margin-bottom:12px}
+.tile{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:14px;text-align:left;color:var(--text);cursor:pointer;min-height:94px}
+.tile b{display:block;margin-top:8px}.tile small{color:var(--muted)}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px}
+input,select,textarea{width:100%;background:#0f1425;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px;font:inherit}
+textarea{min-height:100px;resize:vertical}button{border:0;border-radius:10px;padding:11px 14px;background:var(--accent);color:#11172d;font-weight:750;font-size:14px;cursor:pointer}
+button.secondary{background:#29324d;color:var(--text);border:1px solid var(--line)}button.danger{background:#492b3b;color:#ffdce8}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.output{white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1324;border:1px solid var(--line);padding:13px;border-radius:10px;color:#e6eaff;min-height:65px}
+.nav{position:fixed;bottom:0;left:0;right:0;z-index:8;background:#111629f5;border-top:1px solid var(--line);display:flex;overflow-x:auto;padding:7px max(6px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom));gap:4px}
+.nav button{flex:1;min-width:66px;padding:8px 5px;background:transparent;color:var(--muted);font-size:11px;border-radius:9px}.nav button.active{background:#293453;color:white}
+.page{display:none}.page.active{display:block}.muted{color:var(--muted);font-size:12px}.item{padding:10px;border-bottom:1px solid var(--line)}.item:last-child{border:0}
+.panelgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.comic{min-height:110px;border:2px solid #7585ba;border-radius:7px;background:linear-gradient(145deg,#27314d,#111827);display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;color:#dce4ff;font-size:12px}
+.tag{display:inline-block;background:#293453;color:#cbd5ff;padding:3px 8px;border-radius:99px;font-size:11px;margin:2px}
+@media(min-width:760px){.grid{grid-template-columns:repeat(3,1fr)}.wrap{padding-top:24px}.nav{position:sticky;top:66px;bottom:auto;justify-content:center;border:0;background:transparent;max-width:1100px;margin:auto}.nav button{flex:0 1 130px;background:#171c30;border:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header><div class="head"><div><div class="brand">MANHWA <span>FLOW AI</span></div><div class="sub">YOUR MANGA & MANHWA CREATION STUDIO</div></div><span class="tag">FREE EDITION</span></div></header>
+<main class="wrap">
+<section class="page active" id="home">
+ <div class="hero"><h1>Create your own manhwa universe.</h1><p>Write stories, organize characters, break scripts into scenes and prepare consistent anime/manhwa image prompts.</p><div class="actions"><button onclick="showPage('story')">＋ New story</button><button class="secondary" onclick="showPage('projects')">My projects</button></div></div>
+ <div class="grid">
+  <button class="tile" onclick="showPage('story')">✍️<b>Story Generator</b><small>Build an original story outline</small></button>
+  <button class="tile" onclick="showPage('characters')">🧑‍🎤<b>Character Studio</b><small>Save character identities</small></button>
+  <button class="tile" onclick="showPage('scenes')">🎬<b>Scene Breakdown</b><small>Split script into scenes</small></button>
+  <button class="tile" onclick="showPage('prompts')">🖼️<b>Image Prompts</b><small>Create visual prompts</small></button>
+  <button class="tile" onclick="showPage('comic')">📚<b>Comic Creator</b><small>Preview panel layouts</small></button>
+  <button class="tile" onclick="showPage('projects')">🗂️<b>Projects</b><small>Save and export work</small></button>
+ </div>
+ <div class="card"><h3>Getting started</h3><p class="muted">1. Create a project/story. 2. Add your characters. 3. Paste your script into Scene Breakdown. 4. Generate image prompts. 5. Arrange a comic page.</p></div>
+</section>
+
+<section class="page" id="story">
+ <div class="card"><h2>✍️ Story Generator</h2><p>Creates a structured original story seed locally. No AI API or internet call is used.</p>
+ <label>Story title</label><input id="storyTitle" placeholder="e.g. The Last Celestial Alchemist">
+ <label>Genre</label><select id="genre"><option>Murim / Cultivation</option><option>Hunter / Dungeon / System</option><option>Fantasy / Adventure</option><option>Revenge / Regression</option><option>Romance / Drama</option><option>Beast Evolution</option></select>
+ <label>Language</label><select id="lang"><option>Hindi</option><option>English</option></select>
+ <label>Story duration</label><select id="duration"><option>5 minutes</option><option>10 minutes</option><option>20 minutes</option><option>30 minutes</option><option>45 minutes</option><option>60 minutes</option><option>120 minutes</option></select>
+ <label>Main character name</label><input id="heroName" placeholder="Enter protagonist name">
+ <label>Core idea (optional)</label><textarea id="idea" placeholder="A weak apprentice discovers a forbidden ability..."></textarea>
+ <div class="actions"><button onclick="generateStory()">Generate story blueprint</button><button class="secondary" onclick="saveCurrent()">Save project</button></div>
+ </div><div class="card"><h3>Generated blueprint</h3><div class="output" id="storyOut">Your story blueprint will appear here.</div><div class="actions"><button class="secondary" onclick="copyOut('storyOut')">Copy</button></div></div>
+</section>
+
+<section class="page" id="characters">
+ <div class="card"><h2>🧑‍🎤 Character Studio</h2>
+ <label>Character name</label><input id="charName" placeholder="Character name">
+ <label>Character ID</label><input id="charId" placeholder="CHAR-001">
+ <label>Role</label><select id="charRole"><option>Protagonist</option><option>Antagonist</option><option>Supporting character</option><option>Mentor</option><option>Love interest</option><option>Creature</option></select>
+ <label>Appearance and personality</label><textarea id="charDesc" placeholder="Age, face, hair, eyes, clothing, body type, personality..."></textarea>
+ <label>Permanent visual details (do not change)</label><textarea id="charLock" placeholder="Silver eyes, scar over left eyebrow, black robe..."></textarea>
+ <div class="actions"><button onclick="addCharacter()">Add character</button></div></div>
+ <div class="card"><h3>Character database</h3><div id="characterList" class="muted">No characters saved yet.</div></div>
+</section>
+
+<section class="page" id="scenes">
+ <div class="card"><h2>🎬 Scene Breakdown</h2><p>Paste a script. The local splitter creates numbered scene chunks. It does not understand story meaning like a full language model.</p>
+ <label>Script / narration</label><textarea id="scriptInput" style="min-height:190px" placeholder="Paste your story or narration here..."></textarea>
+ <label>Approximate scene length</label><select id="sceneSize"><option value="500">Short (about 500 characters)</option><option value="900" selected>Medium (about 900 characters)</option><option value="1400">Long (about 1400 characters)</option></select>
+ <div class="actions"><button onclick="breakScenes()">Break into scenes</button><button class="secondary" onclick="copyOut('sceneOut')">Copy result</button></div></div>
+ <div class="card"><h3>Scene list</h3><div id="sceneOut" class="output">Your scenes will appear here.</div></div>
+</section>
+
+<section class="page" id="prompts">
+ <div class="card"><h2>🖼️ Image Prompt Studio</h2>
+ <label>Scene description</label><textarea id="visualScene" placeholder="A young cultivator stands before an ancient mountain sect at sunrise..."></textarea>
+ <label>Character ID / name</label><input id="visualChar" placeholder="CHAR-001 — protagonist">
+ <label>Visual style</label><select id="visualStyle"><option>Premium 2D anime / modern Korean manhwa</option><option>Black and white manga ink</option><option>Soft cinematic anime illustration</option><option>Dark fantasy webtoon</option></select>
+ <label>Aspect ratio</label><select id="ratio"><option>16:9 landscape</option><option>9:16 portrait</option><option>1:1 square</option><option>3:4 portrait</option></select>
+ <label>Camera framing</label><select id="camera"><option>Cinematic wide shot</option><option>Medium shot</option><option>Close-up portrait</option><option>Extreme close-up</option><option>Over-the-shoulder shot</option><option>Low-angle dramatic shot</option></select>
+ <div class="actions"><button onclick="makePrompt()">Generate image prompt</button></div></div>
+ <div class="card"><h3>Ready-to-copy prompt</h3><div class="output" id="promptOut">Your image prompt will appear here.</div><div class="actions"><button class="secondary" onclick="copyOut('promptOut')">Copy prompt</button></div></div>
+</section>
+
+<section class="page" id="comic">
+ <div class="card"><h2>📚 Comic Page Creator</h2><p>Arrange a simple comic-page storyboard. This creates a layout preview, not finished AI artwork.</p>
+ <label>Page title</label><input id="comicTitle" placeholder="Chapter 1 — The Awakening">
+ <label>Panel count</label><select id="panelCount"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select>
+ <label>Panel notes (one per line)</label><textarea id="panelNotes" placeholder="Establishing shot of the city&#10;Hero enters the ruined temple&#10;A mysterious light appears&#10;Hero discovers the hidden mark"></textarea>
+ <div class="actions"><button onclick="makeComic()">Create page layout</button><button class="secondary" onclick="downloadComicText()">Export panel notes</button></div></div>
+ <div class="card"><h3 id="comicHeading">Comic preview</h3><div class="panelgrid" id="comicPreview"></div></div>
+</section>
+
+<section class="page" id="projects">
+ <div class="card"><h2>🗂️ My Projects</h2><p>Projects are saved on this device/browser. Clearing browser data may erase them, so export backups.</p>
+ <label>Project name</label><input id="projectName" placeholder="My Manhwa Project">
+ <div class="actions"><button onclick="saveCurrent()">Save current project</button><button class="secondary" onclick="exportAll()">Export backup JSON</button><button class="secondary" onclick="document.getElementById('importFile').click()">Import JSON</button><input id="importFile" type="file" accept="application/json" hidden onchange="importAll(event)"></div>
+ </div><div class="card"><h3>Saved projects</h3><div id="projectList" class="muted">No saved projects yet.</div></div>
+ <div class="card"><h3>About free mode</h3><p class="muted">This version runs its built-in generators in your browser. It does not call a paid API, and it does not provide unlimited AI model inference or generate finished images. Later, you can connect an open model you host yourself or a service with a free allowance.</p></div>
+</section>
+</main>
+<nav class="nav">
+ <button class="active" data-page="home" onclick="showPage('home')">⌂<br>Home</button>
+ <button data-page="story" onclick="showPage('story')">✍️<br>Story</button>
+ <button data-page="characters" onclick="showPage('characters')">🧑‍🎤<br>Characters</button>
+ <button data-page="scenes" onclick="showPage('scenes')">🎬<br>Scenes</button>
+ <button data-page="prompts" onclick="showPage('prompts')">🖼️<br>Prompts</button>
+ <button data-page="comic" onclick="showPage('comic')">📚<br>Comic</button>
+ <button data-page="projects" onclick="showPage('projects')">🗂️<br>Projects</button>
+</nav>
+<script>
+const KEY='manhwaFlowAI_v1';
+let state=loadState(), lastStory='', lastScenes='', lastComic='';
+function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||{projects:[],characters:[]}}catch(e){return{projects:[],characters:[]}}}
+function persist(){localStorage.setItem(KEY,JSON.stringify(state));renderCharacters();renderProjects()}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));window.scrollTo({top:0,behavior:'smooth'});if(id==='characters')renderCharacters();if(id==='projects')renderProjects()}
+function val(id){return document.getElementById(id).value.trim()}
+function generateStory(){
+ const title=val('storyTitle')||'Untitled Manhwa';const genre=val('genre');const lang=val('lang');const duration=val('duration');const hero=val('heroName')||'A forgotten young warrior';const idea=val('idea')||'A powerless outcast discovers a secret connected to an ancient catastrophe.';
+ const en=`TITLE: ${title}\nGENRE: ${genre}\nLANGUAGE: ${lang}\nTARGET LENGTH: ${duration}\n\nPROTAGONIST: ${hero}\nCORE PREMISE: ${idea}\n\nHOOK\nWhen the world believes ${hero} has nothing left to offer, an impossible event reveals that the greatest danger is hidden inside the very power everyone desires.\n\nACT 1 — THE LOWEST POINT\nIntroduce the world, its rules, the protagonist's daily struggle and the injustice that makes change unavoidable.\n\nACT 2 — THE DISCOVERY\nThe protagonist finds a sealed clue, forbidden technique or unexplained ability. Its first use solves one problem but creates a larger threat.\n\nACT 3 — FIRST TRIALS\nShow training, a rival, a meaningful failure and the first victory. Establish clear costs and limitations for the new power.\n\nACT 4 — THE HIDDEN CONFLICT\nA trusted faction is connected to the mystery. The protagonist learns that the original incident was deliberately concealed.\n\nACT 5 — CLIMAX\nThe protagonist must choose between personal revenge and protecting people who once rejected them. Resolve the immediate conflict through a difficult choice.\n\nACT 6 — ENDING HOOK\nDeliver an emotional conclusion while revealing one new clue that opens the next arc.\n\nORIGINALITY CHECKLIST\n• Create original names, factions, abilities and terminology.\n• Avoid copying recognizable characters, scenes, dialogue or plot sequences.\n• Give every ability a cost, limitation and consequence.\n• Make the protagonist's decisions drive the plot.\n\nNEXT DEVELOPMENT: Expand each act into scenes, then add character and location records.`;
+ const hi=`शीर्षक: ${title}\nशैली: ${genre}\nमुख्य पात्र: ${hero}\nकहानी का आधार: ${idea}\n\nशुरुआती हुक: जब पूरी दुनिया ${hero} को कमजोर और बेकार समझती है, तभी एक रहस्यमयी घटना उसकी जिंदगी बदल देती है। लेकिन नई शक्ति के साथ एक ऐसा खतरा भी जाग जाता है जिसकी सच्चाई सदियों से छिपाई गई थी।\n\nभाग 1 — परिचय और संघर्ष: दुनिया, उसके नियम, मुख्य पात्र की कमजोरी और उसके साथ होने वाला अन्याय दिखाएं।\n\nभाग 2 — रहस्यमयी खोज: मुख्य पात्र को एक गुप्त शक्ति, पुरानी तकनीक या रहस्यमयी वस्तु मिलती है।\n\nभाग 3 — पहली परीक्षा: प्रशिक्षण, प्रतिद्वंद्वी, असफलता और पहली जीत। शक्ति की सीमाएं और कीमत स्पष्ट करें।\n\nभाग 4 — छिपा हुआ रहस्य: एक भरोसेमंद गुट का संबंध पुराने रहस्य से सामने आता है।\n\nभाग 5 — निर्णायक मुकाबला: बदला और दूसरों की रक्षा के बीच कठिन चुनाव।\n\nभाग 6 — अंत और नया रहस्य: वर्तमान संघर्ष का भावनात्मक अंत करें और अगले भाग के लिए नया संकेत छोड़ें।\n\nअगला कदम: हर भाग को दृश्यों में विस्तार दें और सभी पात्रों के स्थायी लुक तय करें।`;
+ lastStory=lang==='Hindi'?hi:en;document.getElementById('storyOut').textContent=lastStory;
+}
+function addCharacter(){const name=val('charName');if(!name){alert('Please enter a character name.');return}const c={id:val('charId')||'CHAR-'+String(state.characters.length+1).padStart(3,'0'),name,role:val('charRole'),description:val('charDesc'),locked:val('charLock')};state.characters.push(c);persist();['charName','charId','charDesc','charLock'].forEach(x=>document.getElementById(x).value='')}
+function renderCharacters(){const el=document.getElementById('characterList');if(!el)return;if(!state.characters.length){el.textContent='No characters saved yet.';return}el.innerHTML=state.characters.map((c,i)=>`<div class="item"><b>${esc(c.id)} — ${esc(c.name)}</b><div class="muted">${esc(c.role)} · ${esc(c.description)}</div><div class="muted"><b>Locked:</b> ${esc(c.locked)}</div><button class="danger" style="margin-top:7px" onclick="deleteCharacter(${i})">Delete</button></div>`).join('')}
+function deleteCharacter(i){state.characters.splice(i,1);persist()}
+function breakScenes(){const raw=val('scriptInput');if(!raw){alert('Paste a script first.');return}const size=Number(val('sceneSize'));const paras=raw.split(/\n+/).map(x=>x.trim()).filter(Boolean);let chunks=[],buf='';for(const p of paras){if(buf&&buf.length+p.length+1>size){chunks.push(buf);buf=''}if(p.length>size){let rest=p;while(rest.length>size){chunks.push(rest.slice(0,size));rest=rest.slice(size)}buf=rest}else{buf+=(buf?'\n':'')+p}}if(buf)chunks.push(buf);lastScenes=chunks.map((s,i)=>`SCENE ${String(i+1).padStart(3,'0')}\n${s}`).join('\n\n');document.getElementById('sceneOut').textContent=lastScenes}
+function makePrompt(){const scene=val('visualScene');if(!scene){alert('Describe your scene first.');return}const chars=state.characters.map(c=>`${c.id}: ${c.name}. Appearance: ${c.description}. LOCKED DETAILS: ${c.locked}`).join('\n');const p=`Create a polished ${val('visualStyle')} illustration, ${val('ratio')}, ${val('camera')}.\n\nSCENE: ${scene}\nCHARACTER REFERENCE: ${val('visualChar')||'No named character supplied'}\n${chars?'\nCHARACTER DATABASE — preserve these designs exactly:\n'+chars:''}\n\nART DIRECTION: clean confident line art, expressive faces, detailed environment, cinematic composition, controlled dramatic lighting, rich readable colors, professional webtoon finish.\n\nCONTINUITY RULES: preserve character age, facial structure, hairstyle, eye color, body proportions, costume and identifying marks. Do not add unlisted characters or props. Keep anatomy natural and hands well formed.\n\nNEGATIVE GUIDANCE: photorealism, 3D render, CGI, inconsistent costume, duplicate characters, extra limbs, distorted hands, random text, watermark, logo.`;document.getElementById('promptOut').textContent=p}
+function makeComic(){const n=Number(val('panelCount'));const notes=val('panelNotes').split('\n').map(x=>x.trim()).filter(Boolean);document.getElementById('comicHeading').textContent=val('comicTitle')||'Comic preview';const labels=Array.from({length:n},(_,i)=>notes[i]||`Panel ${i+1} — add your scene note`);lastComic=labels.map((x,i)=>`PANEL ${i+1}: ${x}`).join('\n');document.getElementById('comicPreview').innerHTML=labels.map((x,i)=>`<div class="comic"><b>${i+1}. ${esc(x)}</b></div>`).join('')}
+function downloadComicText(){if(!lastComic){makeComic()}downloadText('comic-panels.txt',lastComic)}
+function collectProject(){return{title:val('projectName')||val('storyTitle')||'Untitled project',storyTitle:val('storyTitle'),genre:val('genre'),language:val('lang'),duration:val('duration'),heroName:val('heroName'),idea:val('idea'),story:lastStory,script:val('scriptInput'),scenes:lastScenes,characters:state.characters,updated:new Date().toISOString()}}
+function saveCurrent(){const p=collectProject();const idx=state.projects.findIndex(x=>x.title===p.title);if(idx>=0)state.projects[idx]=p;else state.projects.unshift(p);persist();alert('Project saved on this device. Export a backup to keep a copy.')}
+function renderProjects(){const el=document.getElementById('projectList');if(!el)return;if(!state.projects.length){el.textContent='No saved projects yet.';return}el.innerHTML=state.projects.map((p,i)=>`<div class="item"><b>${esc(p.title)}</b><div class="muted">${esc(p.genre||'No genre')} · ${esc(p.updated||'')}</div><div class="actions"><button onclick="loadProject(${i})">Open</button><button class="danger" onclick="deleteProject(${i})">Delete</button></div></div>`).join('')}
+function loadProject(i){const p=state.projects[i];['storyTitle','genre','lang','duration','heroName','idea','scriptInput','projectName'].forEach((id,j)=>{const keys=['storyTitle','genre','language','duration','heroName','idea','script','title'];if(document.getElementById(id)&&p[keys[j]]!==undefined)document.getElementById(id).value=p[keys[j]]});lastStory=p.story||'';lastScenes=p.scenes||'';document.getElementById('storyOut').textContent=lastStory||'No story saved.';document.getElementById('sceneOut').textContent=lastScenes||'No scenes saved.';showPage('story');alert('Project loaded.')}
+function deleteProject(i){if(confirm('Delete this project?')){state.projects.splice(i,1);persist()}}
+function exportAll(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='manhwa-flow-backup.json';a.click();URL.revokeObjectURL(a.href)}
+function importAll(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.projects)||!Array.isArray(d.characters))throw Error();state=d;persist();alert('Backup imported.')}catch(err){alert('This backup file is not valid.')}};r.readAsText(f);e.target.value=''}
+function copyOut(id){const t=document.getElementById(id).textContent;if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(()=>alert('Copied.')).catch(()=>alert('Select and copy the text manually.'))}else{const area=document.createElement('textarea');area.value=t;document.body.appendChild(area);area.select();try{document.execCommand('copy');alert('Copied.')}catch(e){alert('Select and copy the text manually.')}area.remove()}}
+function downloadText(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+renderCharacters();renderProjects();
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script>
+</body></html>
