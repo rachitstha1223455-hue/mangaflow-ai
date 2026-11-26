@@ -1,0 +1,10 @@
+
+{
+  "name": "Manhwa Flow AI",
+  "short_name": "Manhwa Flow",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0d1020",
+  "theme_color": "#101322",
+  "description": "A free manga and manhwa planning studio"
+}
