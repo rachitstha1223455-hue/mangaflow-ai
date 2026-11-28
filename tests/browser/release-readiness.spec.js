@@ -84,9 +84,9 @@ test('mobile-sized viewport keeps the app usable without page-wide horizontal ov
   expect(dimensions.nav).toBeGreaterThan(0);
 });
 
-test('short browser video render creates a non-empty downloadable media file', async ({ page, browserName }) => {
+test('short browser video render creates a non-empty downloadable media file', async ({ page }, testInfo) => {
   test.setTimeout(120000);
-  test.skip(browserName!=='chromium','MediaRecorder canvas export is exercised in Chromium CI.');
+  test.skip(testInfo.project.name!=='chromium','MediaRecorder canvas export is exercised in Chromium CI.');
   await page.goto('/');
   await page.getByRole('button',{name:/Video/}).click();
   await page.evaluate(()=>{
