@@ -62,6 +62,7 @@
     },
     getAsset: id => transaction('readonly', store => store.get(String(id))),
     deleteAsset: id => transaction('readwrite', store => store.delete(String(id))),
+    listAllAssets: () => transaction('readonly', store => store.getAll()),
     listAssets: projectId => transaction('readonly', store => {
       const index = store.index('projectId');
       return index.getAll(String(projectId || 'default'));
