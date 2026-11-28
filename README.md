@@ -181,11 +181,11 @@ The Video Studio connects scene planning, comic artwork and generated/uploaded a
 
 ### Video Studio export, audio and editing improvements
 
-- The exporter checks the browser's native MediaRecorder codecs and writes **MP4 when video/mp4 recording is supported**. Otherwise it exports WebM and reports the actual format; it never falsely renames WebM as MP4.
+- The exporter checks the browser's native MediaRecorder codecs and writes **MP4 when video/mp4 recording is supported**. Otherwise it records WebM and attempts a local MP4 conversion using optional FFmpeg WebAssembly loaded on first use (roughly 30 MB from a public CDN). If the CDN, browser memory or codec build prevents conversion, it downloads the original WebM and reports why; it never falsely renames WebM as MP4. Native MP4 recording works without the FFmpeg download.
 - Removed the old 10-minute export guard. The app permits timelines up to the model's 60-minute maximum, but long renders can still exhaust browser memory or hit operating-system/browser limits. Render long projects in shorter parts on low-memory devices.
 - Preview schedules local audio tracks against the video playhead, including seeking, source trim points, per-track volume, fade-in/fade-out and master volume. The same controls are applied during export.
 - Audio tracks show a decoded waveform overview and offer source trim-in/trim-out, timeline start, duration, volume, mute and fade controls.
-- Clip, subtitle and audio timeline positions/durations snap to the selected frame rate when edited, giving frame-aligned timing rather than arbitrary sub-frame values.
+- Clip, subtitle and audio timeline positions/durations plus audio source trim points snap to the selected frame rate when edited, giving frame-aligned timing rather than arbitrary sub-frame values.
 - Audio preview and export use the Web Audio API. If a browser cannot decode an uploaded audio format, that track is skipped and the status reports the issue.
 - Export uses MediaRecorder timeslices to collect media chunks. Actual encoding speed, maximum practical duration and memory use still depend on browser, available codecs, RAM, resolution and frame rate.
 - This remains a lightweight browser editor, not a professional nonlinear editor or DAW. It does not provide multi-channel audio routing, parametric EQ, compression/limiting, color grading, motion tracking or professional mastering.
