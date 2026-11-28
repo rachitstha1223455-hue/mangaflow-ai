@@ -96,3 +96,22 @@ The Character Studio now contains three reusable databases and an AI-assisted st
 ### Story bible limitations
 
 Extraction quality depends on the selected AI model and the detail in the source story. The extractor is instructed not to invent unknown facts, but every extracted record still needs human review. Manual editing of existing records and automatic scene-to-entity linking are not implemented yet. Those are planned for later continuity and scene-production work.
+
+
+## Phase 2.4 — Intelligent scene planning and artwork prompts
+
+Scene Breakdown now supports an AI-assisted scene planner that uses the Story Bible.
+
+- Analyze a chapter/script into ordered, visually distinct scene beats.
+- Assign stable scene IDs (`SCENE-001`, `SCENE-002`, ...).
+- Link only recognized Story Bible character, location and prop IDs.
+- Suggest each scene's purpose, camera framing, visual direction, continuity notes and transition.
+- Validate AI JSON and discard unknown entity IDs before rendering.
+- Fall back to an offline paragraph/length splitter when AI is unavailable. The fallback links registered entity names only when those names appear in the text; it does not understand story meaning.
+- Select a scene to create a continuity-aware, copy-ready artwork prompt using its linked character, location and prop records.
+- Save and restore the structured scene plan inside existing projects and export it separately as JSON.
+- Automated tests cover fallback splitting, entity linking, AI response validation, prompt continuity and scene limits.
+
+### Scene and artwork limitations
+
+The scene planner prepares structured scene data and prompts; it does not generate finished images. Actual image generation requires a connected image-generation provider or a separately hosted model. AI-generated scene links and visual details must be reviewed before production. Manual editing of individual scene records and full visual asset generation are not included in this stage.
