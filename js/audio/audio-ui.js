@@ -37,10 +37,10 @@
       '<div class="actions"><button class="secondary" onclick="generateAudioItem(' + i + ')">Generate speech</button><button class="secondary" onclick="playAudioItem(' + i + ')">Play</button><button class="secondary" onclick="downloadAudioItem(' + i + ')">Download</button><button class="secondary" onclick="moveAudioItem(' + i + ',-1)">↑</button><button class="secondary" onclick="moveAudioItem(' + i + ',1)">↓</button><button class="danger" onclick="removeAudioItem(' + i + ')">Remove</button></div></div>'
     ).join('');
   }
-  async function storeAudioBlob(index, blob, name) {
+  async function storeAudioBlob(index, blob, name, expectedItem) {
     if (!global.MangaFlowStorage) throw new Error('IndexedDB is unavailable.');
-    const item = audioQueue[index];
-    if (!item) throw new Error('This audio queue item no longer exists.');
+    const item = expectedItem || audioQueue[index];
+    if (!item || audioQueue[index] !== item) throw new Error('This audio queue item changed or no longer exists.');
     if (blob.size > MangaFlowStorage.MAX_ASSET_BYTES) throw new Error('Audio exceeds the 50 MB per-file limit. Compress or split it before adding.');
     const id = 'audio-' + item.id + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
     await MangaFlowStorage.putAsset({ id, projectId: val('projectName') || val('storyTitle') || 'default', blob, type: blob.type || 'audio/mpeg', name: name || item.id });
@@ -55,7 +55,7 @@
     status.textContent = 'Generating audio for ' + item.id + '…';
     try {
       const result = await MangaFlowAI.synthesizeSpeech(item.text, appSettings, item.voice || appSettings.ttsVoice, message => { status.textContent = message; });
-      await storeAudioBlob(index, result.blob, item.id + '.mp3');
+      await storeAudioBlob(index, result.blob, item.id + '.mp3', item);
       status.textContent = 'Generated audio for ' + item.id + '.';
     } catch (error) { status.textContent = 'TTS failed: ' + error.message; }
   }
