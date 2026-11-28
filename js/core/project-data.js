@@ -8,7 +8,8 @@
   function byteLength(value) { return typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(value).byteLength : unescape(encodeURIComponent(value)).length; }
   function normalizeProject(input) {
     const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
-    const project = Object.assign({}, source);
+    const project = {};
+    Object.keys(source).forEach(key => { if (key !== '__proto__' && key !== 'constructor' && key !== 'prototype') project[key] = source[key]; });
     project.title = String(source.title || source.storyTitle || 'Untitled project').slice(0, 240);
     if (Array.isArray(source.scenePlan)) project.scenePlan = source.scenePlan.slice(0, 500);
     if (Array.isArray(source.comicPages) && global.MangaFlowComic) project.comicPages = global.MangaFlowComic.normalizePages(source.comicPages);
