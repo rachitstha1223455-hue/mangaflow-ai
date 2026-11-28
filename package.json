@@ -1,0 +1,12 @@
+{
+  "name": "mangaflow-ai",
+  "version": "0.8.1",
+  "private": true,
+  "scripts": {
+    "test": "node --test js/ai/provider-manager.test.js js/storage.test.js js/story/story-intelligence.test.js js/story/story-bible.test.js js/scenes/scene-intelligence.test.js js/comic/comic-studio.test.js js/audio/audio-studio.test.js js/video/video-studio.test.js js/core/project-data.test.js js/core/project-bundle.test.js js/core/app-integrity.test.js",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
