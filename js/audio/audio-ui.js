@@ -13,14 +13,18 @@
     document.getElementById('audioStatus').textContent = 'Added to audio queue.';
   }
   function importComicAudio() {
-    let added = 0;
-    comicPages.forEach(page => page.panels.forEach(panel => {
-      if (panel.dialogue) { audioQueue.push(MangaFlowAudio.createItem({ kind: 'dialogue', speaker: panel.speaker, text: panel.dialogue, language: val('audioLanguage') || 'English', voice: appSettings.ttsVoice }, audioQueue.length + 1)); added++; }
-      if (panel.narration) { audioQueue.push(MangaFlowAudio.createItem({ kind: 'narration', speaker: 'Narrator', text: panel.narration, language: val('audioLanguage') || 'English', voice: appSettings.ttsVoice }, audioQueue.length + 1)); added++; }
+    let added = 0, skipped = 0;
+    const remaining = Math.max(0, MangaFlowAudio.MAX_ITEMS - audioQueue.length);
+    comicPages.forEach(page => (page.panels || []).forEach(panel => {
+      for (const entry of [{kind:'dialogue',speaker:panel.speaker,text:panel.dialogue},{kind:'narration',speaker:'Narrator',text:panel.narration}]) {
+        if (!entry.text) continue;
+        if (audioQueue.length >= MangaFlowAudio.MAX_ITEMS) { skipped++; continue; }
+        audioQueue.push(MangaFlowAudio.createItem({ kind:entry.kind, speaker:entry.speaker, text:entry.text, language:val('audioLanguage')||'English', voice:appSettings.ttsVoice }, audioQueue.length+1)); added++;
+      }
     }));
     audioQueue = MangaFlowAudio.normalizeQueue(audioQueue);
     renderAudioQueue();
-    document.getElementById('audioStatus').textContent = 'Imported ' + added + ' dialogue/narration clips from comic pages.';
+    document.getElementById('audioStatus').textContent = 'Imported '+added+' dialogue/narration clips from comic pages.'+(skipped?' Skipped '+skipped+' because the 300-item queue limit was reached.':'');
   }
   function renderAudioQueue() {
     const el = document.getElementById('audioQueueList');
@@ -35,8 +39,12 @@
   }
   async function storeAudioBlob(index, blob, name) {
     if (!global.MangaFlowStorage) throw new Error('IndexedDB is unavailable.');
-    const item = audioQueue[index], id = 'audio-' + item.id + '-' + Date.now();
+    const item = audioQueue[index];
+    if (!item) throw new Error('This audio queue item no longer exists.');
+    if (blob.size > MangaFlowStorage.MAX_ASSET_BYTES) throw new Error('Audio exceeds the 50 MB per-file limit. Compress or split it before adding.');
+    const id = 'audio-' + item.id + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
     await MangaFlowStorage.putAsset({ id, projectId: val('projectName') || val('storyTitle') || 'default', blob, type: blob.type || 'audio/mpeg', name: name || item.id });
+    if (audioQueue[index] !== item) { await MangaFlowStorage.deleteAsset(id); throw new Error('The queue changed while this file was processing. Please try again.'); }
     item.audioAssetId = id; item.fileName = name || item.id; item.status = 'ready';
     renderAudioQueue();
   }
@@ -62,6 +70,7 @@
     const file = input.files && input.files[0];
     if (!file) return;
     if (!file.type.startsWith('audio/')) { alert('Choose an audio file.'); input.value = ''; return; }
+    if (file.size > MangaFlowStorage.MAX_ASSET_BYTES) { alert('Audio file exceeds the 50 MB per-file limit. Compress or split it first.'); input.value = ''; return; }
     try { await storeAudioBlob(index, file, file.name); document.getElementById('audioStatus').textContent = 'Audio track uploaded.'; }
     catch (error) { alert(error.message); }
     input.value = '';
@@ -128,7 +137,7 @@
     try {
       const blob = await getAudioBlob(item);
       if (!blob) { document.getElementById('audioStatus').textContent = 'Generate or upload this audio item before downloading.'; return; }
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = item.fileName || item.id + '.mp3'; a.click(); URL.revokeObjectURL(a.href);
+      const a = document.createElement('a'); const url = URL.createObjectURL(blob); a.href = url; a.download = item.fileName || item.id + '.mp3'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
     } catch (error) { document.getElementById('audioStatus').textContent = 'Download failed: ' + error.message; }
   }
   function downloadAudioQueue() { downloadText('mangaflow-audio-queue.txt', MangaFlowAudio.toText(audioQueue) || 'Audio queue is empty.'); }
