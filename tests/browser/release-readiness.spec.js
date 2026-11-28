@@ -13,13 +13,15 @@ test('application starts without uncaught JavaScript errors', async ({ page }) =
 test('project survives save, reload and reopen', async ({ page }) => {
   page.on('dialog',dialog=>dialog.accept());
   await page.goto('/');
+  await page.locator('[data-page="story"]').click();
   await page.locator('#storyTitle').fill('Browser QA Story');
-  await page.locator('#projectName').fill('Browser QA Project');
   await page.locator('#idea').fill('A test story persisted by the browser.');
+  await page.locator('[data-page="projects"]').click();
+  await page.locator('#projectName').fill('Browser QA Project');
   await page.getByRole('button',{name:'Save current project'}).click();
   await expect.poll(async()=>page.evaluate(()=>JSON.parse(localStorage.getItem('manhwaFlowAI_v1')).projects.length)).toBe(1);
   await page.reload();
-  await page.getByRole('button',{name:/Projects/}).first().click();
+  await page.locator('[data-page="projects"]').click();
   await expect(page.locator('#projectList')).toContainText('Browser QA Project');
   await page.getByRole('button',{name:'Open'}).click();
   await expect(page.locator('#storyTitle')).toHaveValue('Browser QA Story');
@@ -44,11 +46,10 @@ test('portable ZIP backup restores media blobs and project references', async ({
     const blob=new Blob(['portable-test-image'],{type:'image/png'});
     await MangaFlowStorage.putAsset({id:'qa-image-asset',projectId:'QA',blob,type:'image/png',name:'qa.png'});
     localStorage.setItem('manhwaFlowAI_v1',JSON.stringify({projects:[{title:'Bundle QA',comicPages:[{title:'Page',panels:[{id:'P1',imageAssetId:'qa-image-asset'}]}]}],characters:[],locations:[],props:[]}));
-    location.reload();
   });
-  await page.waitForLoadState('domcontentloaded');
+  await page.reload();
   const downloadPromise=page.waitForEvent('download');
-  await page.getByRole('button',{name:'Projects'}).click();
+  await page.locator('[data-page="projects"]').click();
   await page.getByRole('button',{name:/Export portable bundle/}).click();
   const download=await downloadPromise;
   const buffer=fs.readFileSync(await download.path());
