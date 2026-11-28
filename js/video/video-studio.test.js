@@ -60,3 +60,20 @@ test('supports hour-long timelines without the former ten-minute render cap', ()
   const t=V.addClip(V.createTimeline(),{duration:120});
   assert.equal(V.duration(t),120);
 });
+
+test('validates MP4 container structure instead of trusting a filename or MIME type', () => {
+  const box=(type,payload=[])=>{
+    const bytes=new Uint8Array(8+payload.length),view=new DataView(bytes.buffer);
+    view.setUint32(0,bytes.length,false);
+    bytes.set(Buffer.from(type),4);
+    bytes.set(payload,8);
+    return bytes;
+  };
+  const join=parts=>{const result=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let offset=0;for(const part of parts){result.set(part,offset);offset+=part.length;}return result;};
+  const valid=join([box('ftyp',[0x69,0x73,0x6f,0x6d,0,0,0,0]),box('moov',[1,2,3,4]),box('mdat',[5,6,7,8])]);
+  assert.equal(V.isValidMp4(valid),true);
+  assert.equal(V.isValidMp4(new TextEncoder().encode('not an mp4')),false);
+  assert.equal(V.isValidMp4(join([box('ftyp',[1]),box('mdat',[2])])),false);
+  const corrupt=valid.slice();new DataView(corrupt.buffer).setUint32(0,0xffffffff,false);
+  assert.equal(V.isValidMp4(corrupt),false);
+});
