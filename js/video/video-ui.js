@@ -263,7 +263,7 @@
     await ffmpeg.exec(['-i','mangaflow-input.webm','-c:v','libx264','-preset','ultrafast','-crf','24','-pix_fmt','yuv420p','-c:a','aac','-b:a','128k','-movflags','+faststart','mangaflow-output.mp4']);
     const data=await ffmpeg.readFile('mangaflow-output.mp4');
     const bytes=data instanceof Uint8Array?data:new Uint8Array(data);
-    if(!bytes.length)throw new Error('FFmpeg produced an empty MP4 file.');
+    if(!MangaFlowVideo.isValidMp4(bytes))throw new Error('FFmpeg output is not a structurally valid MP4 container (ftyp, moov and mdat boxes are required).');
     return new Blob([bytes],{type:'video/mp4'});
   }
   async function exportVideoWebM() {
@@ -313,6 +313,7 @@
       if(audioContext){await audioContext.close();audioContext=null;}
       let blob=new Blob(chunks,{type:recorder.mimeType||mime||(isMp4?'video/mp4':'video/webm')});
       if(!blob.size)throw new Error('The browser returned an empty video file.');
+      if(isMp4&&!MangaFlowVideo.isValidMp4(new Uint8Array(await blob.arrayBuffer())))throw new Error('The browser returned an invalid MP4 container. Try WebM export or another browser.');
       let finalExtension=extension,conversionNote=isMp4?'Native MP4 recording was supported by this browser.':'';
       if(!isMp4){
         videoStatus('This browser records WebM. Loading the optional FFmpeg WebAssembly converter to create MP4 (first use downloads about 30 MB)…');
