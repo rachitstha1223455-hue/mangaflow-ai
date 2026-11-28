@@ -5,6 +5,7 @@
   const MAX_PROJECTS = 500;
   const MAX_RECORDS = 5000;
   function records(value) { return Array.isArray(value) ? value.slice(0, MAX_RECORDS) : []; }
+  function byteLength(value) { return typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(value).byteLength : unescape(encodeURIComponent(value)).length; }
   function normalizeProject(input) {
     const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
     const project = Object.assign({}, source);
@@ -32,7 +33,7 @@
   function parseBackupText(text) {
     const raw = String(text == null ? '' : text);
     if (!raw.trim()) throw new Error('The selected backup file is empty.');
-    if (raw.length > MAX_BACKUP_BYTES) throw new Error('Backup exceeds the 25 MB import limit. Split the backup or remove large text records.');
+    if (byteLength(raw) > MAX_BACKUP_BYTES) throw new Error('Backup exceeds the 25 MB import limit. Split the backup or remove large text records.');
     let parsed;
     try { parsed = JSON.parse(raw); }
     catch (_) { throw new Error('This file is not valid JSON. Your current projects have not been changed.'); }
@@ -45,7 +46,9 @@
     const state = normalizeState(input);
     state.backupVersion = 1;
     state.exportedAt = now || new Date().toISOString();
-    return JSON.stringify(state, null, 2);
+    const output = JSON.stringify(state, null, 2);
+    if (byteLength(output) > MAX_BACKUP_BYTES) throw new Error('Backup exceeds the 25 MB export limit. Remove large text records or split your projects into separate backups.');
+    return output;
   }
   function saveLocal(storage, key, value) {
     try {
