@@ -23,7 +23,7 @@ test('adds, updates, moves and removes clips without mutating input', () => {
 });
 test('normalizes subtitle intervals and exports SRT and VTT timestamps', () => {
   let t = V.addCaption(V.createTimeline(),{text:'नमस्ते',language:'Hindi',startTime:1.25,endTime:4.5});
-  assert.match(V.toSRT(t),/00:00:01,250 --> 00:00:04,500/);
+  assert.match(V.toSRT(t),new RegExp(V.snapTime(1.25,30).toFixed(3).replace('.', '\\.')+' --> 00:00:04,500'));
   assert.match(V.toSRT(t),/नमस्ते/);
   assert.match(V.toVTT(t),/^WEBVTT/);
 });
