@@ -30,7 +30,7 @@ jobs:
           node --check js/video/video-ui.js
           npm install --no-audit --no-fund
           npm test
-          npx playwright install --with-deps chromium firefox webkit
+          npx playwright install --with-deps chromium firefox webkit chrome msedge
           npm run test:browser
       - name: Check inline application JavaScript
         run: |
