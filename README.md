@@ -57,3 +57,21 @@ This branch adds the first hybrid-AI and storage foundations while keeping the o
 - Provider connectivity depends on a running compatible endpoint, network access, model availability, and CORS policy.
 - The interface remains primarily English; story generation can be requested in Hindi or English.
 - Image generation, voice synthesis, audio queues, video editing, and MP4 export are not part of this foundation stage.
+
+
+## Phase 2.2 — Story intelligence
+
+The Story Generator now includes a chapter and episode planner.
+
+- Generate a plan for 5, 10, 15, 20, or 30 chapters.
+- Choose how many chapters are grouped into each episode.
+- Use the configured Online/Local/Hybrid provider to request a structured chapter plan.
+- Validate and normalize the AI response before displaying it.
+- If AI is unavailable or returns malformed/incomplete JSON, use a deterministic offline outline template instead.
+- Each chapter includes a title, summary, story goal, conflict, turning point, and cliffhanger.
+- Export the plan as JSON and save it inside the existing project record. Older saved projects without a chapter plan remain supported.
+- Automated Node.js tests cover offline plan generation, episode grouping, AI response validation, and chapter-count limits.
+
+### Story planner limitations
+
+The offline fallback is a reusable structural outline, not a language model and not a substitute for creative AI writing. AI plan quality depends on the connected provider and model. The planner does not yet provide a full chapter editor, automatic character/location/prop extraction, or semantic scene analysis; those belong to later phases.
