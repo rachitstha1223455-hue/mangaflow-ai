@@ -6,7 +6,7 @@
 - Character database with locked appearance notes
 - Script chunking into numbered scenes
 - Anime/manhwa image prompt builder using saved character descriptions
-- Comic panel storyboard preview
+- Editable comic pages with image assets, panel resizing/reordering and print export
 - Local project save, JSON backup and restore
 
 ## Run locally
@@ -132,6 +132,14 @@ The Comic Creator has been upgraded from a static panel preview to an editable m
 - Save and restore comic pages inside project saves. Older project records without comic pages remain supported.
 - Automated tests cover page creation, scene linking, field normalization and text export.
 
-### Comic studio limitations
+### Comic artwork, layout and print production
 
-The preview is a browser-rendered storyboard mock-up using text and placeholder panel backgrounds. It does not create finished illustrations, speech lettering in artwork, or print-ready comic images. Panel editing is currently field-based; image asset placement and drag-and-drop resizing are not implemented.
+- Attach finished panel illustrations from image files. Images are stored in IndexedDB on the current browser/device and referenced by saved comic pages.
+- Generate panel artwork through an OpenAI-compatible image-generation proxy endpoint. Configure its HTTPS URL and model in AI Settings; the endpoint must return `data[0].b64_json` or `data[0].url`. The app never stores provider API secrets.
+- Drag panels to reorder them and drag the lower-right grip to resize their column span. Page layout presets apply sensible initial spans.
+- Preview real attached/generated images alongside dialogue bubbles, narration boxes and sound-effect text.
+- Export the selected page as a 2480 × 3508 PNG (A4 at 300 DPI).
+- Export all pages through the browser print dialog; choose **Save as PDF** to create a multi-page A4 PDF.
+- Artwork files remain local in IndexedDB and are not embedded in the lightweight JSON project backup. Keep original artwork files when moving a project to another device.
+
+Image generation requires a separately hosted compatible provider or proxy, network access and its own compute/billing/free quota. Without one, upload artwork files directly. Print exports are rasterized page images; professional bleed, CMYK colour management and printer crop marks are not implemented.
