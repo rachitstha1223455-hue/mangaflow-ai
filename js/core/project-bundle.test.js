@@ -17,6 +17,6 @@ test('round-trips project metadata and binary media in a portable ZIP',async()=>
 test('rejects invalid or corrupted portable bundles',async()=>{
  await assert.rejects(()=>B.readBundle(new Blob(['not zip'])),/not a MangaFlow/);
  const zip=await B.createBundle({projects:[]},[]);
- const bytes=new Uint8Array(await zip.arrayBuffer());bytes[bytes.length-23]^=1;
+ const bytes=new Uint8Array(await zip.arrayBuffer());bytes[60]^=1;
  await assert.rejects(()=>B.readBundle(new Blob([bytes])),/not a MangaFlow|integrity/);
 });
