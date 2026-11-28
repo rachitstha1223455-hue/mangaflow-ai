@@ -5,6 +5,8 @@
     mode: 'hybrid',
     onlineEndpoint: '',
     onlineModel: '',
+    imageEndpoint: '',
+    imageModel: '',
     localEndpoint: 'http://localhost:11434/v1/chat/completions',
     localModel: 'qwen2.5:3b',
     timeoutMs: 45000
@@ -14,6 +16,8 @@
     value.mode = ['online', 'local', 'hybrid'].includes(value.mode) ? value.mode : 'hybrid';
     value.onlineEndpoint = String(value.onlineEndpoint || '').trim();
     value.onlineModel = String(value.onlineModel || '').trim();
+    value.imageEndpoint = String(value.imageEndpoint || '').trim();
+    value.imageModel = String(value.imageModel || '').trim();
     value.localEndpoint = String(value.localEndpoint || DEFAULTS.localEndpoint).trim();
     value.localModel = String(value.localModel || DEFAULTS.localModel).trim();
     value.timeoutMs = Math.min(120000, Math.max(5000, Number(value.timeoutMs) || DEFAULTS.timeoutMs));
@@ -91,5 +95,42 @@
     const result = await request(selected.endpoint, selected.model, 'Reply with exactly: MangaFlow connection successful.', 15000);
     return { engine: selected.name, reply: result };
   }
-  global.MangaFlowAI = { defaults: DEFAULTS, cleanConfig, generate, test };
+
+  async function generateImage(prompt, settings, onStatus) {
+    const config = cleanConfig(settings);
+    if (!config.imageEndpoint || !config.imageModel) throw new Error('Configure an image-generation proxy endpoint and model in AI Settings first.');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), Math.max(config.timeoutMs, 90000));
+    try {
+      if (typeof onStatus === 'function') onStatus('Sending artwork prompt to image provider…');
+      const response = await fetch(endpointUrl(config.imageEndpoint), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: config.imageModel, prompt: String(prompt || ''),
+          n: 1, size: '1024x1536', response_format: 'b64_json' }),
+        signal: controller.signal
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = payload.error && (payload.error.message || payload.error) || payload.message || ('HTTP ' + response.status);
+        throw new Error(String(detail));
+      }
+      const item = payload.data && payload.data[0];
+      if (item && item.b64_json) {
+        const binary = atob(item.b64_json);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return { blob: new Blob([bytes], { type: 'image/png' }), engine: 'Image provider' };
+      }
+      if (item && item.url) {
+        const imageResponse = await fetch(item.url, { signal: controller.signal });
+        if (!imageResponse.ok) throw new Error('Image URL could not be downloaded. Configure your proxy to return b64_json to avoid cross-origin restrictions.');
+        return { blob: await imageResponse.blob(), engine: 'Image provider' };
+      }
+      throw new Error('Image provider response must include data[0].b64_json or data[0].url.');
+    } catch (error) {
+      if (error.name === 'AbortError') throw new Error('Image generation timed out.');
+      throw error;
+    } finally { clearTimeout(timer); }
+  }
+  global.MangaFlowAI = { defaults: DEFAULTS, cleanConfig, generate, test, generateImage };
 })(window);
