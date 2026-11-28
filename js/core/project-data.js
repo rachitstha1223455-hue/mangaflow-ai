@@ -32,8 +32,8 @@
   }
   function parseBackupText(text) {
     const raw = String(text == null ? '' : text);
-    if (!raw.trim()) throw new Error('The selected backup file is empty.');
     if (byteLength(raw) > MAX_BACKUP_BYTES) throw new Error('Backup exceeds the 25 MB import limit. Split the backup or remove large text records.');
+    if (!raw.trim()) throw new Error('The selected backup file is empty.');
     let parsed;
     try { parsed = JSON.parse(raw); }
     catch (_) { throw new Error('This file is not valid JSON. Your current projects have not been changed.'); }
