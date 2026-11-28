@@ -309,6 +309,8 @@
         raf=requestAnimationFrame(frame);
       });
       await stopped;
+      if(stream){stream.getTracks().forEach(track=>track.stop());stream=null;}
+      if(audioContext){await audioContext.close();audioContext=null;}
       let blob=new Blob(chunks,{type:recorder.mimeType||mime||(isMp4?'video/mp4':'video/webm')});
       if(!blob.size)throw new Error('The browser returned an empty video file.');
       let finalExtension=extension,conversionNote=isMp4?'Native MP4 recording was supported by this browser.':'';
