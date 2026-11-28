@@ -106,6 +106,19 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
  </div><div class="card"><h3>Saved projects</h3><div id="projectList" class="muted">No saved projects yet.</div></div>
  <div class="card"><h3>About free mode</h3><p class="muted">This version runs its built-in generators in your browser. It does not call a paid API, and it does not provide unlimited AI model inference or generate finished images. Later, you can connect an open model you host yourself or a service with a free allowance.</p></div>
 </section>
+<section class="page" id="settings">
+<div class="card"><h2>⚙️ AI & App Settings</h2><p>Choose online, local or hybrid text generation. Never put private API keys in this browser app.</p>
+<label>AI mode</label><select id="aiMode"><option value="hybrid">Hybrid — online first, local fallback</option><option value="online">Online proxy only</option><option value="local">Local AI only</option></select>
+<label>Online server proxy URL (OpenAI-compatible)</label><input id="onlineEndpoint" type="url" placeholder="https://your-private-server.example/api/chat/completions">
+<label>Online model name</label><input id="onlineModel" placeholder="Model configured on your server">
+<p class="muted">Configure provider API keys as private server environment secrets, never in this page.</p>
+<label>Local OpenAI-compatible endpoint</label><input id="localEndpoint" type="url" placeholder="http://localhost:11434/v1/chat/completions">
+<label>Local model name</label><input id="localModel" placeholder="qwen2.5:3b">
+<label>Interface / generation language</label><select id="appLanguage"><option value="en">English</option><option value="hi">हिन्दी (Hindi)</option></select>
+<div class="actions"><button onclick="saveSettings()">Save settings</button><button class="secondary" onclick="testAI('local')">Test local AI</button><button class="secondary" onclick="testAI('online')">Test online proxy</button></div>
+<div class="output" id="aiStatus" aria-live="polite">Built-in template generation is always available as a fallback.</div></div>
+<div class="card"><h3>Provider notes</h3><p class="muted">Local mode requires an OpenAI-compatible chat-completions endpoint, such as an Ollama-compatible gateway. Online mode requires your own HTTPS backend proxy. GitHub Pages is static hosting and cannot safely hide private API keys.</p></div>
+</section>
 </main>
 <nav class="nav">
  <button class="active" data-page="home" onclick="showPage('home')">⌂<br>Home</button>
@@ -116,18 +129,36 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
  <button data-page="comic" onclick="showPage('comic')">📚<br>Comic</button>
  <button data-page="projects" onclick="showPage('projects')">🗂️<br>Projects</button>
 </nav>
+<script src="js/storage.js"></script>
+<script src="js/ai/provider-manager.js"></script>
 <script>
 const KEY='manhwaFlowAI_v1';
 let state=loadState(), lastStory='', lastScenes='', lastComic='';
+const SETTINGS_KEY='manhwaFlowAI_settings_v1';
+let appSettings=loadSettings();
+function loadSettings(){try{return MangaFlowAI.cleanConfig(JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'))}catch(e){return MangaFlowAI.cleanConfig({})}}
+function saveSettings(){appSettings=MangaFlowAI.cleanConfig({mode:val('aiMode'),onlineEndpoint:val('onlineEndpoint'),onlineModel:val('onlineModel'),localEndpoint:val('localEndpoint')||MangaFlowAI.defaults.localEndpoint,localModel:val('localModel')||MangaFlowAI.defaults.localModel});localStorage.setItem(SETTINGS_KEY,JSON.stringify(appSettings));localStorage.setItem('manhwaFlowAI_language',val('appLanguage')||'en');document.getElementById('aiStatus').textContent='Settings saved on this device. No API key is stored.';}
+function renderSettings(){if(!document.getElementById('aiMode'))return;document.getElementById('aiMode').value=appSettings.mode;document.getElementById('onlineEndpoint').value=appSettings.onlineEndpoint;document.getElementById('onlineModel').value=appSettings.onlineModel;document.getElementById('localEndpoint').value=appSettings.localEndpoint;document.getElementById('localModel').value=appSettings.localModel;document.getElementById('appLanguage').value=localStorage.getItem('manhwaFlowAI_language')||'en';}
+async function testAI(which){saveSettings();const status=document.getElementById('aiStatus');status.textContent='Testing '+which+' provider…';try{const result=await MangaFlowAI.test(appSettings,which);status.textContent=result.engine+' connected. Response: '+result.reply;}catch(error){status.textContent='Connection failed: '+error.message;}}
 function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||{projects:[],characters:[]}}catch(e){return{projects:[],characters:[]}}}
 function persist(){localStorage.setItem(KEY,JSON.stringify(state));renderCharacters();renderProjects()}
-function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));window.scrollTo({top:0,behavior:'smooth'});if(id==='characters')renderCharacters();if(id==='projects')renderProjects()}
+function showPage(id){if(id==='settings')renderSettings();document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));window.scrollTo({top:0,behavior:'smooth'});if(id==='characters')renderCharacters();if(id==='projects')renderProjects()}
 function val(id){return document.getElementById(id).value.trim()}
-function generateStory(){
+async function generateStory(){
  const title=val('storyTitle')||'Untitled Manhwa';const genre=val('genre');const lang=val('lang');const duration=val('duration');const hero=val('heroName')||'A forgotten young warrior';const idea=val('idea')||'A powerless outcast discovers a secret connected to an ancient catastrophe.';
  const en=`TITLE: ${title}\nGENRE: ${genre}\nLANGUAGE: ${lang}\nTARGET LENGTH: ${duration}\n\nPROTAGONIST: ${hero}\nCORE PREMISE: ${idea}\n\nHOOK\nWhen the world believes ${hero} has nothing left to offer, an impossible event reveals that the greatest danger is hidden inside the very power everyone desires.\n\nACT 1 — THE LOWEST POINT\nIntroduce the world, its rules, the protagonist's daily struggle and the injustice that makes change unavoidable.\n\nACT 2 — THE DISCOVERY\nThe protagonist finds a sealed clue, forbidden technique or unexplained ability. Its first use solves one problem but creates a larger threat.\n\nACT 3 — FIRST TRIALS\nShow training, a rival, a meaningful failure and the first victory. Establish clear costs and limitations for the new power.\n\nACT 4 — THE HIDDEN CONFLICT\nA trusted faction is connected to the mystery. The protagonist learns that the original incident was deliberately concealed.\n\nACT 5 — CLIMAX\nThe protagonist must choose between personal revenge and protecting people who once rejected them. Resolve the immediate conflict through a difficult choice.\n\nACT 6 — ENDING HOOK\nDeliver an emotional conclusion while revealing one new clue that opens the next arc.\n\nORIGINALITY CHECKLIST\n• Create original names, factions, abilities and terminology.\n• Avoid copying recognizable characters, scenes, dialogue or plot sequences.\n• Give every ability a cost, limitation and consequence.\n• Make the protagonist's decisions drive the plot.\n\nNEXT DEVELOPMENT: Expand each act into scenes, then add character and location records.`;
  const hi=`शीर्षक: ${title}\nशैली: ${genre}\nमुख्य पात्र: ${hero}\nकहानी का आधार: ${idea}\n\nशुरुआती हुक: जब पूरी दुनिया ${hero} को कमजोर और बेकार समझती है, तभी एक रहस्यमयी घटना उसकी जिंदगी बदल देती है। लेकिन नई शक्ति के साथ एक ऐसा खतरा भी जाग जाता है जिसकी सच्चाई सदियों से छिपाई गई थी।\n\nभाग 1 — परिचय और संघर्ष: दुनिया, उसके नियम, मुख्य पात्र की कमजोरी और उसके साथ होने वाला अन्याय दिखाएं।\n\nभाग 2 — रहस्यमयी खोज: मुख्य पात्र को एक गुप्त शक्ति, पुरानी तकनीक या रहस्यमयी वस्तु मिलती है।\n\nभाग 3 — पहली परीक्षा: प्रशिक्षण, प्रतिद्वंद्वी, असफलता और पहली जीत। शक्ति की सीमाएं और कीमत स्पष्ट करें।\n\nभाग 4 — छिपा हुआ रहस्य: एक भरोसेमंद गुट का संबंध पुराने रहस्य से सामने आता है।\n\nभाग 5 — निर्णायक मुकाबला: बदला और दूसरों की रक्षा के बीच कठिन चुनाव।\n\nभाग 6 — अंत और नया रहस्य: वर्तमान संघर्ष का भावनात्मक अंत करें और अगले भाग के लिए नया संकेत छोड़ें।\n\nअगला कदम: हर भाग को दृश्यों में विस्तार दें और सभी पात्रों के स्थायी लुक तय करें।`;
- lastStory=lang==='Hindi'?hi:en;document.getElementById('storyOut').textContent=lastStory;
+ const fallback=lang==='Hindi'?hi:en;
+ const status=document.getElementById('storyOut');
+ const prompt='Write a detailed original manhwa story blueprint. Do not imitate existing franchises. Title: '+title+'. Genre: '+genre+'. Language: '+lang+'. Target length: '+duration+'. Protagonist: '+hero+'. Core idea: '+idea+'. Include a strong hook, setting, character motivation, escalating conflict, six-act progression, emotional climax, ending hook, and originality safeguards.';
+ status.textContent='Preparing story…';
+ try {
+  const result=await MangaFlowAI.generate(prompt,appSettings,message=>{status.textContent=message;});
+  lastStory=result.text+'\n\n[Generated by '+result.engine+']';
+ } catch(error) {
+  lastStory=fallback+'\n\n[Built-in fallback used: '+error.message+']';
+ }
+ status.textContent=lastStory;
 }
 function addCharacter(){const name=val('charName');if(!name){alert('Please enter a character name.');return}const c={id:val('charId')||'CHAR-'+String(state.characters.length+1).padStart(3,'0'),name,role:val('charRole'),description:val('charDesc'),locked:val('charLock')};state.characters.push(c);persist();['charName','charId','charDesc','charLock'].forEach(x=>document.getElementById(x).value='')}
 function renderCharacters(){const el=document.getElementById('characterList');if(!el)return;if(!state.characters.length){el.textContent='No characters saved yet.';return}el.innerHTML=state.characters.map((c,i)=>`<div class="item"><b>${esc(c.id)} — ${esc(c.name)}</b><div class="muted">${esc(c.role)} · ${esc(c.description)}</div><div class="muted"><b>Locked:</b> ${esc(c.locked)}</div><button class="danger" style="margin-top:7px" onclick="deleteCharacter(${i})">Delete</button></div>`).join('')}
