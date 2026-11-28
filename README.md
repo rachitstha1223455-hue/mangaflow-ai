@@ -140,7 +140,7 @@ The Comic Creator has been upgraded from a static panel preview to an editable m
 - Preview real attached/generated images alongside dialogue bubbles, narration boxes and sound-effect text.
 - Export the selected page as a 2480 × 3508 PNG (A4 at 300 DPI).
 - Export all pages through the browser print dialog; choose **Save as PDF** to create a multi-page A4 PDF.
-- Artwork files remain local in IndexedDB and are not embedded in the lightweight JSON project backup. Keep original artwork files when moving a project to another device.
+- Artwork files remain local in IndexedDB and are not embedded in the lightweight JSON project backup. Use **Export portable bundle (ZIP + media)** to package all project metadata and local artwork/audio blobs together, then **Import portable bundle** on another device. The ZIP uses an uncompressed internal format to avoid a third-party runtime dependency and has a 500 MB total limit.
 
 Image generation requires a separately hosted compatible provider or proxy, network access and its own compute/billing/free quota. Without one, upload artwork files directly. Print exports are rasterized page images; professional bleed, CMYK colour management and printer crop marks are not implemented.
 
@@ -179,9 +179,16 @@ The Video Studio connects scene planning, comic artwork and generated/uploaded a
 - Save and restore the normalized video timeline as part of project records. Older projects without a video timeline load with an empty timeline.
 - Export timeline metadata as JSON. Artwork and audio blobs remain in local IndexedDB and are not embedded in JSON backups.
 
-### Video Studio limitations
+### Video Studio export, audio and editing improvements
 
-The current exporter produces **WebM**, not MP4. MP4 encoding is not implemented because browser support and codec availability vary; use a desktop encoder such as FFmpeg to convert WebM to MP4 if needed. Video export requires a modern browser with Canvas captureStream, MediaRecorder and (for audio mixing) Web Audio support. Audio tracks whose local asset is missing are skipped. The browser exporter limits a single render to 10 minutes to reduce memory and stability problems. Export performance depends on device hardware, resolution and frame rate. The timeline is a basic scene-based editor, not a full nonlinear editor: it does not yet provide frame-accurate trimming, waveform editing, professional color grading, transitions beyond cut/fade, or multitrack audio mastering. Test long projects in short segments first.
+- The exporter checks the browser's native MediaRecorder codecs and writes **MP4 when video/mp4 recording is supported**. Otherwise it exports WebM and reports the actual format; it never falsely renames WebM as MP4.
+- Removed the old 10-minute export guard. The app permits timelines up to the model's 60-minute maximum, but long renders can still exhaust browser memory or hit operating-system/browser limits. Render long projects in shorter parts on low-memory devices.
+- Preview schedules local audio tracks against the video playhead, including seeking, source trim points, per-track volume, fade-in/fade-out and master volume. The same controls are applied during export.
+- Audio tracks show a decoded waveform overview and offer source trim-in/trim-out, timeline start, duration, volume, mute and fade controls.
+- Clip, subtitle and audio timeline positions/durations snap to the selected frame rate when edited, giving frame-aligned timing rather than arbitrary sub-frame values.
+- Audio preview and export use the Web Audio API. If a browser cannot decode an uploaded audio format, that track is skipped and the status reports the issue.
+- Export uses MediaRecorder timeslices to collect media chunks. Actual encoding speed, maximum practical duration and memory use still depend on browser, available codecs, RAM, resolution and frame rate.
+- This remains a lightweight browser editor, not a professional nonlinear editor or DAW. It does not provide multi-channel audio routing, parametric EQ, compression/limiting, color grading, motion tracking or professional mastering.
 
 
 ## Phase 2.8 — Stability, backups and offline support
@@ -197,6 +204,18 @@ The stabilization stage adds regression checks and safer browser persistence acr
 - Precache the app HTML, JavaScript modules, icons and manifest in the service worker. Network-first navigation and cache-first static assets improve offline reopening after the first successful installation.
 - Expand automated checks for provider fallback, backup migration, asset validation, duplicate HTML IDs, script references, module load order and service-worker precache coverage.
 
-### Stability limitations
+### Stability and browser QA
 
-The application remains a browser-only PWA. LocalStorage and IndexedDB data are device/browser-specific; JSON backups do not include large artwork/audio blobs. Browser storage quotas vary by device and browser, and the 50 MB per-file limit does not guarantee that a device has enough remaining storage. Offline mode can use the precached application shell and modules, but online AI, image generation and remote TTS still require a network connection. This stage adds automated regression checks, not a complete cross-browser manual QA campaign.
+The application remains a browser-only PWA. LocalStorage and IndexedDB data are device/browser-specific; portable ZIP bundles are the recommended way to move projects with their local media. Browser storage quotas vary by device and browser, and the 50 MB per-file limit does not guarantee that a device has enough remaining storage. Offline mode can use the precached application shell and modules, but online AI, image generation and remote TTS still require a network connection.
+
+GitHub Actions runs Playwright end-to-end checks in Chromium, Firefox and WebKit for startup, project save/reopen, legacy JSON import, media bundle round-trip, offline reopening, mobile-sized layout and a short Chromium video render. These automated browsers are strong regression coverage but are not a substitute for hands-on testing on physical Android/iOS devices or Microsoft Edge on Windows. A successful CI run does not claim those physical-device checks were performed.
+
+
+## Phase 2.8.1 — Final QA and media portability
+
+- Native MP4 is exported where the browser advertises an MP4 MediaRecorder codec; WebM is used otherwise.
+- Removed the former 10-minute export cap and aligned the app's maximum render window with its 60-minute timeline model.
+- Synchronized audio preview and export; added decoded waveform overview, source trim in/out, frame-aligned timeline timing, per-track volume, fades and master volume.
+- Added portable ZIP bundles that include all IndexedDB media assets as well as project metadata. The existing lightweight JSON backup remains available and compatible.
+- Added Playwright end-to-end regression tests across Chromium, Firefox and WebKit, including project save/reopen, legacy backup import, media bundle restoration, offline reopening, mobile viewport layout and a short browser video render.
+- CI cannot physically test every browser/device combination. Manual verification on Windows Edge and real Android/iOS devices remains a release checklist item.
