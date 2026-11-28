@@ -56,10 +56,20 @@
     if(!manifestBytes)throw new Error('This ZIP is not a MangaFlow portable project bundle.');
     let manifest;try{manifest=JSON.parse(decoder.decode(manifestBytes));}catch(_){throw new Error('Portable bundle manifest is invalid.');}
     if(manifest.format!=='MangaFlow portable project bundle'||manifest.version!==1||!manifest.state)throw new Error('Unsupported MangaFlow portable bundle version.');
-    const assets=(Array.isArray(manifest.assets)?manifest.assets:[]).map(meta=>{
+    if(!Array.isArray(manifest.assets)||manifest.assets.length>5000)throw new Error('Portable bundle contains an invalid or excessive media list.');
+    const seenIds=new Set(),seenPaths=new Set();
+    const assets=manifest.assets.map(meta=>{
+      if(!meta||typeof meta!=='object'||typeof meta.id!=='string'||!meta.id||meta.id.length>160)throw new Error('Portable bundle contains an invalid media ID.');
+      if(seenIds.has(meta.id))throw new Error('Portable bundle contains duplicate media IDs: '+meta.id);
+      seenIds.add(meta.id);
+      if(typeof meta.path!=='string'||!meta.path.startsWith('assets/')||meta.path.includes('..')||seenPaths.has(meta.path))throw new Error('Portable bundle contains an invalid or duplicate media path.');
+      seenPaths.add(meta.path);
+      if(!Number.isSafeInteger(meta.size)||meta.size<=0||meta.size>50*1024*1024)throw new Error('Portable bundle contains an invalid media size: '+meta.name);
       const data=files.get(meta.path);if(!data)throw new Error('Missing bundled media file: '+meta.name);
       if(data.byteLength!==meta.size)throw new Error('Media size check failed: '+meta.name);
-      return {id:String(meta.id),projectId:String(meta.projectId||'default'),type:String(meta.type||'application/octet-stream'),name:String(meta.name||meta.id),blob:new Blob([data],{type:meta.type||'application/octet-stream'})};
+      const type=String(meta.type||'application/octet-stream');
+      if(type.length>128)throw new Error('Portable bundle contains an invalid media type.');
+      return {id:meta.id,projectId:String(meta.projectId||'default'),type,name:String(meta.name||meta.id),blob:new Blob([data],{type})};
     });
     return {state:manifest.state,assets,exportedAt:manifest.exportedAt||null};
   }
