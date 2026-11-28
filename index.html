@@ -327,7 +327,37 @@ function copyOut(id){const t=document.getElementById(id).textContent;if(navigato
 function downloadText(name,text){const url=URL.createObjectURL(new Blob([text],{type:name.endsWith('.json')?'application/json':'text/plain'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000)}
 async function refreshStorageStatus(){const status=document.getElementById('storageStatus');if(!status)return;status.textContent='Checking browser storage…';try{const estimate=await MangaFlowStorage.estimate(),assets=await MangaFlowStorage.listAllAssets(),mediaBytes=assets.reduce((sum,item)=>sum+(item.blob&&item.blob.size||0),0),mb=value=>(value/1024/1024).toFixed(1)+' MB';if(estimate&&Number.isFinite(estimate.quota)){const percent=estimate.quota?Math.round(estimate.usage/estimate.quota*100):0;status.textContent='Browser origin storage: '+mb(estimate.usage||0)+' used of '+mb(estimate.quota)+' ('+percent+'%). IndexedDB media: '+assets.length+' files, '+mb(mediaBytes)+'. Export a portable ZIP bundle regularly; browser storage may be cleared or evicted.'}else status.textContent='IndexedDB media: '+assets.length+' files, '+mb(mediaBytes)+'. This browser does not expose a storage quota estimate. Export a portable ZIP bundle regularly.'}catch(error){status.textContent='Could not estimate storage: '+error.message+' Export a portable ZIP bundle to protect your work.'}}
 async function exportPortableBundle(){try{const assets=await MangaFlowStorage.listAllAssets();const bundle=await MangaFlowBundle.createBundle(MangaFlowProjects.normalizeState(state),assets);downloadBlob('mangaflow-portable-project.zip',bundle);const status=document.getElementById('storageStatus');if(status)status.textContent='Portable bundle exported with '+assets.length+' media assets. Keep this ZIP to move artwork and audio to another device.'}catch(error){alert('Portable bundle export failed: '+error.message)}}
-async function importPortableBundle(event){const file=event.target.files&&event.target.files[0];if(!file)return;const previous=state;try{const bundle=await MangaFlowBundle.readBundle(file);const imported=MangaFlowProjects.normalizeState(MangaFlowProjects.parseBackupText(JSON.stringify(bundle.state)));for(const asset of bundle.assets)await MangaFlowStorage.putAsset(asset);state=imported;if(!persist()){state=previous;renderProjects();return}renderCharacters();renderLocations();renderProps();renderComic();renderAudioQueue();renderVideoStudio();const status=document.getElementById('storageStatus');if(status)status.textContent='Portable bundle imported with '+bundle.assets.length+' media assets. Your artwork and audio references are restored.';alert('Portable project bundle imported successfully.')}catch(error){state=previous;renderProjects();alert('Portable bundle import failed: '+error.message)}finally{event.target.value=''}}
+async function importPortableBundle(event){
+ const file=event.target.files&&event.target.files[0];if(!file)return;
+ const previous=state,assetBackups=[];let assetsTouched=false;
+ const rollbackAssets=async()=>{
+  if(!assetsTouched)return;
+  for(const backup of assetBackups){
+   try{if(backup.record)await MangaFlowStorage.putAsset(backup.record);else await MangaFlowStorage.deleteAsset(backup.id)}catch(error){console.error('Could not fully roll back imported media asset',backup.id,error)}
+  }
+ };
+ try{
+  const bundle=await MangaFlowBundle.readBundle(file);
+  const imported=MangaFlowProjects.normalizeState(MangaFlowProjects.parseBackupText(JSON.stringify(bundle.state)));
+  for(const asset of bundle.assets){
+   const existing=await MangaFlowStorage.getAsset(asset.id);
+   assetBackups.push({id:asset.id,record:existing||null});
+   assetsTouched=true;
+   await MangaFlowStorage.putAsset(asset);
+  }
+  state=imported;
+  if(!persist()){
+   state=previous;await rollbackAssets();renderProjects();return;
+  }
+  renderCharacters();renderLocations();renderProps();renderComic();renderAudioQueue();renderVideoStudio();
+  const status=document.getElementById('storageStatus');
+  if(status)status.textContent='Portable bundle imported with '+bundle.assets.length+' media assets. Your artwork and audio references are restored.';
+  alert('Portable project bundle imported successfully.');
+ }catch(error){
+  state=previous;await rollbackAssets();renderProjects();
+  alert('Portable bundle import failed: '+error.message);
+ }finally{event.target.value=''}
+}
 function downloadBlob(name,blob){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000)}
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
