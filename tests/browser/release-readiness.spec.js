@@ -66,6 +66,33 @@ test('portable ZIP backup restores media blobs and project references', async ({
 });
 
 
+
+test('portable ZIP import rolls back overwritten and newly added media when project save fails', async ({ page, browserName }) => {
+  test.skip(browserName==='webkit','IndexedDB Blob rollback is covered on Chromium, Chrome and Edge CI.');
+  page.on('dialog',dialog=>dialog.accept());
+  await page.goto('/');
+  const bytes=await page.evaluate(async()=>{
+    await MangaFlowStorage.putAsset({id:'rollback-existing',projectId:'Original',blob:new Blob(['original-media'],{type:'image/png'}),type:'image/png',name:'original.png'});
+    localStorage.setItem('manhwaFlowAI_v1',JSON.stringify({projects:[{title:'Original Project'}],characters:[],locations:[],props:[]}));
+    const zip=await MangaFlowBundle.createBundle({projects:[{title:'Imported Project'}],characters:[],locations:[],props:[]},[
+      {id:'rollback-existing',projectId:'Imported',blob:new Blob(['replacement-media'],{type:'image/png'}),type:'image/png',name:'replacement.png'},
+      {id:'rollback-new',projectId:'Imported',blob:new Blob(['new-media'],{type:'image/png'}),type:'image/png',name:'new.png'}
+    ]);
+    return Array.from(new Uint8Array(await zip.arrayBuffer()));
+  });
+  await page.evaluate(()=>{
+    Storage.prototype.setItem=function(){throw new Error('Simulated storage quota failure');};
+  });
+  await page.locator('#bundleFile').setInputFiles({name:'rollback-test.zip',mimeType:'application/zip',buffer:Buffer.from(bytes)});
+  await expect.poll(async()=>page.evaluate(async()=>{
+    const old=await MangaFlowStorage.getAsset('rollback-existing');
+    const added=await MangaFlowStorage.getAsset('rollback-new');
+    return {old:old&&await old.blob.text(),added:!!added};
+  })).toEqual({old:'original-media',added:false});
+  const state=await page.evaluate(()=>JSON.parse(Storage.prototype.getItem.call(localStorage,'manhwaFlowAI_v1')));
+  expect(state.projects[0].title).toBe('Original Project');
+});
+
 test('JSON backup export and import round-trip current project metadata', async ({ page }) => {
   page.on('dialog',dialog=>dialog.accept());
   await page.goto('/');
