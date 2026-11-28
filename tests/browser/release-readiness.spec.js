@@ -164,7 +164,7 @@ test('storyboard artwork, narration audio and subtitles form a persistent video 
     localStorage.setItem('manhwaFlowAI_v1',JSON.stringify({projects:[{title:'Pipeline QA',videoTimeline:timeline}],characters:[],locations:[],props:[]}));
     return {duration:MangaFlowVideo.duration(timeline),srt:MangaFlowVideo.toSRT(timeline),clips:timeline.clips.length,audio:timeline.audioTracks.length,caption:timeline.captions.length};
   });
-  expect(result).toEqual({duration:10,srt:'1\\n00:00:00,000 --> 00:00:04,000\\nनमस्ते दुनिया',clips:2,audio:1,caption:1});
+  expect(result).toEqual({duration:10,srt:'1\n00:00:00,000 --> 00:00:04,000\nनमस्ते दुनिया',clips:2,audio:1,caption:1});
   await page.reload();
   const restored=await page.evaluate(async()=>{
     const state=JSON.parse(localStorage.getItem('manhwaFlowAI_v1'));
