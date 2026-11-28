@@ -78,6 +78,32 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
  <label>Permanent visual details (do not change)</label><textarea id="charLock" placeholder="Silver eyes, scar over left eyebrow, black robe..."></textarea>
  <div class="actions"><button onclick="addCharacter()">Add character</button></div></div>
  <div class="card"><h3>Character database</h3><div id="characterList" class="muted">No characters saved yet.</div></div>
+<div class="card">
+<h2>🧭 Story Bible Extraction</h2>
+<p>Extract characters, locations and important props from your story using your configured AI provider. Review suggestions before keeping them.</p>
+<div class="actions"><button onclick="extractStoryBible()">Extract story entities</button><button class="secondary" onclick="downloadStoryBible()">Export story bible JSON</button></div>
+<div class="output" id="bibleStatus" aria-live="polite">No extraction has been run yet.</div>
+</div>
+<div class="card"><h2>🌍 Location Database</h2>
+<label>Location name</label><input id="locName" placeholder="The Glass Citadel">
+<label>Location ID (optional)</label><input id="locId" placeholder="LOC-001">
+<label>Location type</label><input id="locType" placeholder="Royal palace, forest, city, dungeon...">
+<label>Environment description</label><textarea id="locDesc" placeholder="Architecture, terrain, scale, atmosphere..."></textarea>
+<label>Landmarks</label><input id="locLandmarks" placeholder="Central tower, eastern bridge...">
+<label>Lighting and color palette</label><input id="locLook" placeholder="Cold moonlight, blue-grey palette...">
+<div class="actions"><button onclick="addLocation()">Add location</button></div>
+<div id="locationList" class="muted">No locations saved yet.</div>
+</div>
+<div class="card"><h2>🧰 Props Database</h2>
+<label>Prop name</label><input id="propName" placeholder="The Ember Compass">
+<label>Prop ID (optional)</label><input id="propId" placeholder="PROP-001">
+<label>Prop type</label><input id="propType" placeholder="Weapon, artifact, tool, document...">
+<label>Description</label><textarea id="propDesc" placeholder="Shape, material, markings, special properties..."></textarea>
+<label>Owner / associated character</label><input id="propOwner" placeholder="CHAR-001 — protagonist">
+<label>Permanent visual details</label><input id="propLock" placeholder="Brass casing, cracked red crystal...">
+<div class="actions"><button onclick="addProp()">Add prop</button></div>
+<div id="propList" class="muted">No props saved yet.</div>
+</div>
 </section>
 
 <section class="page" id="scenes">
@@ -150,9 +176,9 @@ function loadSettings(){try{return MangaFlowAI.cleanConfig(JSON.parse(localStora
 function saveSettings(){appSettings=MangaFlowAI.cleanConfig({mode:val('aiMode'),onlineEndpoint:val('onlineEndpoint'),onlineModel:val('onlineModel'),localEndpoint:val('localEndpoint')||MangaFlowAI.defaults.localEndpoint,localModel:val('localModel')||MangaFlowAI.defaults.localModel});localStorage.setItem(SETTINGS_KEY,JSON.stringify(appSettings));localStorage.setItem('manhwaFlowAI_language',val('appLanguage')||'en');const storyLanguage=document.getElementById('lang');if(storyLanguage)storyLanguage.value=(val('appLanguage')||'en')==='hi'?'Hindi':'English';document.getElementById('aiStatus').textContent='Settings saved on this device. No API key is stored.';}
 function renderSettings(){if(!document.getElementById('aiMode'))return;document.getElementById('aiMode').value=appSettings.mode;document.getElementById('onlineEndpoint').value=appSettings.onlineEndpoint;document.getElementById('onlineModel').value=appSettings.onlineModel;document.getElementById('localEndpoint').value=appSettings.localEndpoint;document.getElementById('localModel').value=appSettings.localModel;document.getElementById('appLanguage').value=localStorage.getItem('manhwaFlowAI_language')||'en';}
 async function testAI(which){saveSettings();const status=document.getElementById('aiStatus');status.textContent='Testing '+which+' provider…';try{const result=await MangaFlowAI.test(appSettings,which);status.textContent=result.engine+' connected. Response: '+result.reply;}catch(error){status.textContent='Connection failed: '+error.message;}}
-function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||{projects:[],characters:[]}}catch(e){return{projects:[],characters:[]}}}
-function persist(){localStorage.setItem(KEY,JSON.stringify(state));renderCharacters();renderProjects()}
-function showPage(id){if(id==='settings')renderSettings();document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));window.scrollTo({top:0,behavior:'smooth'});if(id==='characters')renderCharacters();if(id==='projects')renderProjects()}
+function loadState(){try{const saved=JSON.parse(localStorage.getItem(KEY))||{};return{projects:Array.isArray(saved.projects)?saved.projects:[],characters:Array.isArray(saved.characters)?saved.characters:[],locations:Array.isArray(saved.locations)?saved.locations:[],props:Array.isArray(saved.props)?saved.props:[]}}catch(e){return{projects:[],characters:[],locations:[],props:[]}}}
+function persist(){localStorage.setItem(KEY,JSON.stringify(state));renderCharacters();renderLocations();renderProps();renderProjects()}
+function showPage(id){if(id==='settings')renderSettings();document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));window.scrollTo({top:0,behavior:'smooth'});if(id==='characters'){renderCharacters();renderLocations();renderProps()}if(id==='projects')renderProjects()}
 function val(id){return document.getElementById(id).value.trim()}
 async function generateStory(){
  const title=val('storyTitle')||'Untitled Manhwa';const genre=val('genre');const lang=val('lang');const duration=val('duration');const hero=val('heroName')||'A forgotten young warrior';const idea=val('idea')||'A powerless outcast discovers a secret connected to an ancient catastrophe.';
@@ -207,14 +233,38 @@ function downloadStoryPlan(){
 function addCharacter(){const name=val('charName');if(!name){alert('Please enter a character name.');return}const c={id:val('charId')||'CHAR-'+String(state.characters.length+1).padStart(3,'0'),name,role:val('charRole'),description:val('charDesc'),locked:val('charLock')};state.characters.push(c);persist();['charName','charId','charDesc','charLock'].forEach(x=>document.getElementById(x).value='')}
 function renderCharacters(){const el=document.getElementById('characterList');if(!el)return;if(!state.characters.length){el.textContent='No characters saved yet.';return}el.innerHTML=state.characters.map((c,i)=>`<div class="item"><b>${esc(c.id)} — ${esc(c.name)}</b><div class="muted">${esc(c.role)} · ${esc(c.description)}</div><div class="muted"><b>Locked:</b> ${esc(c.locked)}</div><button class="danger" style="margin-top:7px" onclick="deleteCharacter(${i})">Delete</button></div>`).join('')}
 function deleteCharacter(i){state.characters.splice(i,1);persist()}
+function makeAssetId(prefix,items){let max=0;items.forEach(item=>{const m=String(item.id||'').match(/(\d+)$/);if(m)max=Math.max(max,Number(m[1]))});return prefix+String(max+1).padStart(3,'0')}
+function addLocation(){const name=val('locName');if(!name){alert('Enter a location name first.');return}state.locations.push({id:val('locId')||makeAssetId('LOC-',state.locations),name,type:val('locType'),description:val('locDesc'),landmarks:val('locLandmarks'),lighting:val('locLook')});persist();['locName','locId','locType','locDesc','locLandmarks','locLook'].forEach(id=>document.getElementById(id).value='')}
+function addProp(){const name=val('propName');if(!name){alert('Enter a prop name first.');return}state.props.push({id:val('propId')||makeAssetId('PROP-',state.props),name,type:val('propType'),description:val('propDesc'),owner:val('propOwner'),visualLock:val('propLock')});persist();['propName','propId','propType','propDesc','propOwner','propLock'].forEach(id=>document.getElementById(id).value='')}
+function renderLocations(){const el=document.getElementById('locationList');if(!el)return;if(!state.locations.length){el.textContent='No locations saved yet.';return}el.innerHTML=state.locations.map((item,i)=>'<div class="item"><b>'+esc(item.id)+' — '+esc(item.name)+'</b><div class="muted">'+esc(item.type)+' · '+esc(item.description)+'</div><div class="muted"><b>Landmarks:</b> '+esc(item.landmarks)+'<br><b>Lighting / palette:</b> '+esc(item.lighting)+'</div><button class="danger" style="margin-top:7px" onclick="deleteLocation('+i+')">Delete</button></div>').join('')}
+function renderProps(){const el=document.getElementById('propList');if(!el)return;if(!state.props.length){el.textContent='No props saved yet.';return}el.innerHTML=state.props.map((item,i)=>'<div class="item"><b>'+esc(item.id)+' — '+esc(item.name)+'</b><div class="muted">'+esc(item.type)+' · '+esc(item.description)+'</div><div class="muted"><b>Owner:</b> '+esc(item.owner)+'<br><b>Visual lock:</b> '+esc(item.visualLock)+'</div><button class="danger" style="margin-top:7px" onclick="deleteProp('+i+')">Delete</button></div>').join('')}
+function deleteLocation(i){state.locations.splice(i,1);persist()}
+function deleteProp(i){state.props.splice(i,1);persist()}
+function getStoryBibleSource(){const parts=[lastStory,document.getElementById('idea').value,document.getElementById('scriptInput').value];if(currentStoryPlan)parts.push(JSON.stringify(currentStoryPlan));return parts.map(x=>String(x||'').trim()).filter(Boolean).join('\n\n').slice(0,30000)}
+async function extractStoryBible(){
+ const source=getStoryBibleSource(),status=document.getElementById('bibleStatus');
+ if(!source){status.textContent='Add a story idea, generate a blueprint, or paste a script before extraction.';return}
+ status.textContent='Analyzing story for characters, locations and props…';
+ try{
+  const result=await MangaFlowAI.generate(MangaFlowBible.buildPrompt(source,val('lang')),appSettings,message=>{status.textContent=message;});
+  const normalized=MangaFlowBible.normalize(result.text);
+  const additions=MangaFlowBible.withIds(normalized,state);
+  state.characters.push(...additions.characters);state.locations.push(...additions.locations);state.props.push(...additions.props);
+  persist();
+  const total=additions.characters.length+additions.locations.length+additions.props.length;
+  status.textContent='Extraction finished with '+result.engine+'. Added '+additions.characters.length+' characters, '+additions.locations.length+' locations and '+additions.props.length+' props. Duplicate names were skipped. Review and correct every record before production.';
+ }catch(error){status.textContent='Extraction failed: '+error.message+' No records were added. You can add records manually below.'}
+}
+function downloadStoryBible(){const payload={characters:state.characters,locations:state.locations,props:state.props,exportedAt:new Date().toISOString()};downloadText('mangaflow-story-bible.json',JSON.stringify(payload,null,2))}
+
 function breakScenes(){const raw=val('scriptInput');if(!raw){alert('Paste a script first.');return}const size=Number(val('sceneSize'));const paras=raw.split(/\n+/).map(x=>x.trim()).filter(Boolean);let chunks=[],buf='';for(const p of paras){if(buf&&buf.length+p.length+1>size){chunks.push(buf);buf=''}if(p.length>size){let rest=p;while(rest.length>size){chunks.push(rest.slice(0,size));rest=rest.slice(size)}buf=rest}else{buf+=(buf?'\n':'')+p}}if(buf)chunks.push(buf);lastScenes=chunks.map((s,i)=>`SCENE ${String(i+1).padStart(3,'0')}\n${s}`).join('\n\n');document.getElementById('sceneOut').textContent=lastScenes}
 function makePrompt(){const scene=val('visualScene');if(!scene){alert('Describe your scene first.');return}const chars=state.characters.map(c=>`${c.id}: ${c.name}. Appearance: ${c.description}. LOCKED DETAILS: ${c.locked}`).join('\n');const p=`Create a polished ${val('visualStyle')} illustration, ${val('ratio')}, ${val('camera')}.\n\nSCENE: ${scene}\nCHARACTER REFERENCE: ${val('visualChar')||'No named character supplied'}\n${chars?'\nCHARACTER DATABASE — preserve these designs exactly:\n'+chars:''}\n\nART DIRECTION: clean confident line art, expressive faces, detailed environment, cinematic composition, controlled dramatic lighting, rich readable colors, professional webtoon finish.\n\nCONTINUITY RULES: preserve character age, facial structure, hairstyle, eye color, body proportions, costume and identifying marks. Do not add unlisted characters or props. Keep anatomy natural and hands well formed.\n\nNEGATIVE GUIDANCE: photorealism, 3D render, CGI, inconsistent costume, duplicate characters, extra limbs, distorted hands, random text, watermark, logo.`;document.getElementById('promptOut').textContent=p}
 function makeComic(){const n=Number(val('panelCount'));const notes=val('panelNotes').split('\n').map(x=>x.trim()).filter(Boolean);document.getElementById('comicHeading').textContent=val('comicTitle')||'Comic preview';const labels=Array.from({length:n},(_,i)=>notes[i]||`Panel ${i+1} — add your scene note`);lastComic=labels.map((x,i)=>`PANEL ${i+1}: ${x}`).join('\n');document.getElementById('comicPreview').innerHTML=labels.map((x,i)=>`<div class="comic"><b>${i+1}. ${esc(x)}</b></div>`).join('')}
 function downloadComicText(){if(!lastComic){makeComic()}downloadText('comic-panels.txt',lastComic)}
-function collectProject(){return{title:val('projectName')||val('storyTitle')||'Untitled project',storyTitle:val('storyTitle'),genre:val('genre'),language:val('lang'),duration:val('duration'),heroName:val('heroName'),idea:val('idea'),story:lastStory,storyPlan:currentStoryPlan,script:val('scriptInput'),scenes:lastScenes,characters:state.characters,updated:new Date().toISOString()}}
+function collectProject(){return{title:val('projectName')||val('storyTitle')||'Untitled project',storyTitle:val('storyTitle'),genre:val('genre'),language:val('lang'),duration:val('duration'),heroName:val('heroName'),idea:val('idea'),story:lastStory,storyPlan:currentStoryPlan,script:val('scriptInput'),scenes:lastScenes,characters:state.characters,locations:state.locations,props:state.props,updated:new Date().toISOString()}}
 function saveCurrent(){const p=collectProject();const idx=state.projects.findIndex(x=>x.title===p.title);if(idx>=0)state.projects[idx]=p;else state.projects.unshift(p);persist();alert('Project saved on this device. Export a backup to keep a copy.')}
 function renderProjects(){const el=document.getElementById('projectList');if(!el)return;if(!state.projects.length){el.textContent='No saved projects yet.';return}el.innerHTML=state.projects.map((p,i)=>`<div class="item"><b>${esc(p.title)}</b><div class="muted">${esc(p.genre||'No genre')} · ${esc(p.updated||'')}</div><div class="actions"><button onclick="loadProject(${i})">Open</button><button class="danger" onclick="deleteProject(${i})">Delete</button></div></div>`).join('')}
-function loadProject(i){const p=state.projects[i];['storyTitle','genre','lang','duration','heroName','idea','scriptInput','projectName'].forEach((id,j)=>{const keys=['storyTitle','genre','language','duration','heroName','idea','script','title'];if(document.getElementById(id)&&p[keys[j]]!==undefined)document.getElementById(id).value=p[keys[j]]});lastStory=p.story||'';lastScenes=p.scenes||'';currentStoryPlan=p.storyPlan||null;document.getElementById('storyOut').textContent=lastStory||'No story saved.';document.getElementById('sceneOut').textContent=lastScenes||'No scenes saved.';renderStoryPlan();showPage('story');alert('Project loaded.')}
+function loadProject(i){const p=state.projects[i];['storyTitle','genre','lang','duration','heroName','idea','scriptInput','projectName'].forEach((id,j)=>{const keys=['storyTitle','genre','language','duration','heroName','idea','script','title'];if(document.getElementById(id)&&p[keys[j]]!==undefined)document.getElementById(id).value=p[keys[j]]});lastStory=p.story||'';lastScenes=p.scenes||'';currentStoryPlan=p.storyPlan||null;state.characters=Array.isArray(p.characters)?p.characters:state.characters;state.locations=Array.isArray(p.locations)?p.locations:state.locations;state.props=Array.isArray(p.props)?p.props:state.props;persist();document.getElementById('storyOut').textContent=lastStory||'No story saved.';document.getElementById('sceneOut').textContent=lastScenes||'No scenes saved.';renderStoryPlan();showPage('story');alert('Project loaded.')}
 function deleteProject(i){if(confirm('Delete this project?')){state.projects.splice(i,1);persist()}}
 function exportAll(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='manhwa-flow-backup.json';a.click();URL.revokeObjectURL(a.href)}
 function importAll(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.projects)||!Array.isArray(d.characters))throw Error();state=d;persist();alert('Backup imported.')}catch(err){alert('This backup file is not valid.')}};r.readAsText(f);e.target.value=''}
@@ -222,7 +272,7 @@ function copyOut(id){const t=document.getElementById(id).textContent;if(navigato
 function downloadText(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const preferredLanguage=localStorage.getItem('manhwaFlowAI_language');if(preferredLanguage==='hi'||preferredLanguage==='en')document.getElementById('lang').value=preferredLanguage==='hi'?'Hindi':'English';
-renderCharacters();renderProjects();
+renderCharacters();renderLocations();renderProps();renderProjects();
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script>
 </body></html>
