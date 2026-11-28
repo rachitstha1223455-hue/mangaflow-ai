@@ -36,3 +36,23 @@ test('exports page and panel script text', () => {
   assert.match(text, /Mira/);
   assert.match(text, /We made it\./);
 });
+
+test('stores artwork references and bounded resize dimensions', () => {
+  const page = comic.createPage('Resize', 'Chapter 1', 1, [{ id: 'SCENE-001' }]);
+  page.panels[0].imageAssetId = 'asset-001';
+  page.panels[0].span = 14;
+  page.panels[0].height = 9999;
+  const normalized = comic.normalizePages([page])[0].panels[0];
+  assert.equal(normalized.imageAssetId, 'asset-001');
+  assert.equal(normalized.span, 12);
+  assert.equal(normalized.height, 900);
+});
+
+test('preserves panel image and speech data through normalization', () => {
+  const page = comic.createPage('Art', '', 1, [{ id: 'SCENE-002', summary: 'Rainy street' }]);
+  Object.assign(page.panels[0], { imageAssetId: 'image-x', speaker: 'Ari', dialogue: 'Run!' });
+  const result = comic.normalizePages([page]);
+  assert.equal(result[0].panels[0].imageAssetId, 'image-x');
+  assert.equal(result[0].panels[0].speaker, 'Ari');
+  assert.equal(result[0].panels[0].dialogue, 'Run!');
+});
