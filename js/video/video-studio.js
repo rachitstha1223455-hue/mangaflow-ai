@@ -48,14 +48,15 @@
   }
   function normalizeTimeline(input) {
     const x = input || {};
-    const clips = Array.isArray(x.clips) ? x.clips.slice(0, LIMITS.clips).map((c,i) => createClip(c,i+1)) : [];
-    const captions = Array.isArray(x.captions) ? x.captions.slice(0, LIMITS.captions).map((c,i) => createCaption(c,i+1)).filter(c => c.text) : [];
-    const audioTracks = Array.isArray(x.audioTracks) ? x.audioTracks.slice(0, LIMITS.audioTracks).map((a,i) => createAudioTrack(a,i+1)) : [];
+    const fps = [24,25,30,60].includes(Number(x.fps)) ? Number(x.fps) : 30;
+    const clips = Array.isArray(x.clips) ? x.clips.slice(0, LIMITS.clips).map((c,i) => { const item=createClip(c,i+1);item.startTime=snapTime(item.startTime,fps);item.duration=Math.max(1/fps,snapTime(item.duration,fps));return item; }) : [];
+    const captions = Array.isArray(x.captions) ? x.captions.slice(0, LIMITS.captions).map((c,i) => { const item=createCaption(c,i+1);item.startTime=snapTime(item.startTime,fps);item.endTime=Math.max(item.startTime+1/fps,snapTime(item.endTime,fps));return item; }).filter(c => c.text) : [];
+    const audioTracks = Array.isArray(x.audioTracks) ? x.audioTracks.slice(0, LIMITS.audioTracks).map((a,i) => { const item=createAudioTrack(a,i+1);item.startTime=snapTime(item.startTime,fps);if(item.duration>0)item.duration=Math.max(1/fps,snapTime(item.duration,fps));item.trimStart=snapTime(item.trimStart,fps);if(item.trimEnd>0)item.trimEnd=snapTime(item.trimEnd,fps);return item; }) : [];
     return {
       version: 1,
       width: [1280,1920].includes(Number(x.width)) ? Number(x.width) : 1280,
       height: [720,1080].includes(Number(x.height)) ? Number(x.height) : 720,
-      fps: [24,25,30,60].includes(Number(x.fps)) ? Number(x.fps) : 30,
+      fps,
       masterVolume: clamp(x.masterVolume, 0, 1, 1), clips, captions, audioTracks
     };
   }
