@@ -64,6 +64,41 @@ test('portable ZIP backup restores media blobs and project references', async ({
   expect(state.projects[0].title).toBe('Bundle QA');
 });
 
+
+test('JSON backup export and import round-trip current project metadata', async ({ page }) => {
+  page.on('dialog',dialog=>dialog.accept());
+  await page.goto('/');
+  await page.evaluate(()=>localStorage.setItem('manhwaFlowAI_v1',JSON.stringify({projects:[{title:'JSON Round Trip',story:'Backup text'}],characters:[],locations:[],props:[]})));
+  await page.reload();
+  await page.locator('[data-page="projects"]').click();
+  const downloadPromise=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Export backup JSON'}).click();
+  const download=await downloadPromise;
+  const buffer=fs.readFileSync(await download.path());
+  await page.evaluate(()=>localStorage.removeItem('manhwaFlowAI_v1'));
+  await page.reload();
+  await page.locator('#importFile').setInputFiles({name:'backup.json',mimeType:'application/json',buffer});
+  await expect.poll(async()=>page.evaluate(()=>JSON.parse(localStorage.getItem('manhwaFlowAI_v1')).projects[0].title)).toBe('JSON Round Trip');
+  const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem('manhwaFlowAI_v1')));
+  expect(restored.projects[0].story).toBe('Backup text');
+});
+
+test('large artwork and audio blobs survive a browser restart in IndexedDB', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(async()=>{
+    const image=new Blob([new Uint8Array(8*1024*1024)],{type:'image/png'});
+    const audio=new Blob([new Uint8Array(8*1024*1024)],{type:'audio/mpeg'});
+    await MangaFlowStorage.putAsset({id:'large-qa-image',projectId:'Large QA',blob:image,type:'image/png',name:'large.png'});
+    await MangaFlowStorage.putAsset({id:'large-qa-audio',projectId:'Large QA',blob:audio,type:'audio/mpeg',name:'large.mp3'});
+  });
+  await page.reload();
+  const sizes=await page.evaluate(async()=>{
+    const image=await MangaFlowStorage.getAsset('large-qa-image'),audio=await MangaFlowStorage.getAsset('large-qa-audio');
+    return [image&&image.blob.size,audio&&audio.blob.size];
+  });
+  expect(sizes).toEqual([8*1024*1024,8*1024*1024]);
+});
+
 test('service worker supports offline reopening after first installation', async ({ page, context }) => {
   await page.goto('/');
   await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
