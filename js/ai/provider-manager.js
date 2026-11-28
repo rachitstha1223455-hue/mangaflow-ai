@@ -174,5 +174,5 @@
       throw error;
     } finally { clearTimeout(timer); }
   }
-  global.MangaFlowAI = { defaults: DEFAULTS, cleanConfig, generate, test, generateImage, synthesizeSpeech };
+  global.MangaFlowAI = { defaults: DEFAULTS, cleanConfig, validateEndpoint: endpointUrl, generate, test, generateImage, synthesizeSpeech };
 })(window);
