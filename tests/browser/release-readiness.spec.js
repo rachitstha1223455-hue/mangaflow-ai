@@ -175,10 +175,10 @@ test('storyboard artwork, narration audio and subtitles form a persistent video 
   expect(restored).toEqual({title:'Pipeline QA',clips:2,audio:1,image:'artwork-bytes',voice:'audio-bytes'});
 });
 
-test('short browser video render creates a non-empty downloadable media file', async ({ page }, testInfo) => {
+test('short browser video render produces a playable WebM when MP4 conversion is unavailable', async ({ page }, testInfo) => {
   test.setTimeout(120000);
   test.skip(testInfo.project.name!=='chromium','MediaRecorder canvas export is exercised in Chromium CI.');
-  await page.addInitScript(()=>{window.FFmpegWASM={FFmpeg:class{on(){}async load(){}async writeFile(){}async exec(){}async readFile(){return new Uint8Array([0,0,0,16,102,116,121,112,105,115,111,109,0,0,0,0,0,0,0,12,109,111,111,118,1,2,3,4,0,0,0,12,109,100,97,116,5,6,7,8]);}},toBlobURL:async url=>url};});
+  await page.addInitScript(()=>{window.FFmpegWASM={FFmpeg:class{on(){}async load(){}async writeFile(){}async exec(){}async readFile(){return new Uint8Array([1,2,3,4]);}},toBlobURL:async url=>url};});
   await page.goto('/');
   await page.getByRole('button',{name:/Video/}).click();
   await page.evaluate(()=>{
@@ -190,6 +190,23 @@ test('short browser video render creates a non-empty downloadable media file', a
   const download=await downloadPromise;
   const file=fs.readFileSync(await download.path());
   expect(file.length).toBeGreaterThan(1000);
-  expect(download.suggestedFilename()).toMatch(/\.mp4$/);
-  expect(file.subarray(4,8).toString()).toBe('ftyp');
+  expect(download.suggestedFilename()).toMatch(/\.webm$/);
+  const playback=await page.evaluate(async base64=>{
+    const binary=atob(base64),bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    const video=document.createElement('video');
+    video.muted=true;video.playsInline=true;
+    const url=URL.createObjectURL(new Blob([bytes],{type:'video/webm'}));
+    try{
+      const metadata=new Promise((resolve,reject)=>{
+        video.onloadedmetadata=()=>resolve({duration:video.duration,width:video.videoWidth,height:video.videoHeight});
+        video.onerror=()=>reject(new Error('Browser could not decode exported WebM.'));
+      });
+      video.src=url;
+      return await metadata;
+    }finally{URL.revokeObjectURL(url);}
+  },file.toString('base64'));
+  expect(playback.duration).toBeGreaterThan(0);
+  expect(playback.width).toBeGreaterThan(0);
+  expect(playback.height).toBeGreaterThan(0);
 });
