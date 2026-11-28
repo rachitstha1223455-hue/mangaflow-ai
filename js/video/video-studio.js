@@ -119,9 +119,33 @@
     ).join('\n\n');
     return 'WEBVTT\n\n'+body;
   }
+  function isValidMp4(input) {
+    const bytes = input instanceof Uint8Array ? input : input instanceof ArrayBuffer ? new Uint8Array(input) : null;
+    if (!bytes || bytes.length < 24) return false;
+    const readType = offset => String.fromCharCode(bytes[offset],bytes[offset+1],bytes[offset+2],bytes[offset+3]);
+    let offset=0,hasFtyp=false,hasMoov=false,hasMdat=false,boxes=0;
+    while(offset+8<=bytes.length&&boxes++<10000){
+      let size= new DataView(bytes.buffer,bytes.byteOffset+offset,bytes.byteLength-offset).getUint32(0,false);
+      const type=readType(offset+4);let header=8;
+      if(size===1){
+        if(offset+16>bytes.length)return false;
+        const view=new DataView(bytes.buffer,bytes.byteOffset+offset,bytes.byteLength-offset);
+        const high=view.getUint32(8,false),low=view.getUint32(12,false);
+        if(high!==0)return false;
+        size=low;header=16;
+      }else if(size===0)size=bytes.length-offset;
+      if(size<header||offset+size>bytes.length)return false;
+      if(offset===0&&type!=='ftyp')return false;
+      if(type==='ftyp')hasFtyp=true;
+      if(type==='moov')hasMoov=true;
+      if(type==='mdat'&&size>header)hasMdat=true;
+      offset+=size;
+    }
+    return offset===bytes.length&&hasFtyp&&hasMoov&&hasMdat;
+  }
   function timestamp(seconds, separator) {
     const ms = Math.round(Math.max(0,seconds)*1000), h = Math.floor(ms/3600000), m = Math.floor(ms%3600000/60000), s = Math.floor(ms%60000/1000), milli = ms%1000;
     return [String(h).padStart(2,'0'),String(m).padStart(2,'0'),String(s).padStart(2,'0')].join(':')+separator+String(milli).padStart(3,'0');
   }
-  global.MangaFlowVideo = { LIMITS, createClip, createCaption, createAudioTrack, createTimeline, normalizeTimeline, duration, snapTime, audioTrackDuration, addClip, updateClip, removeClip, moveClip, addCaption, addAudioTrack, toSRT, toVTT };
+  global.MangaFlowVideo = { LIMITS, isValidMp4, createClip, createCaption, createAudioTrack, createTimeline, normalizeTimeline, duration, snapTime, audioTrackDuration, addClip, updateClip, removeClip, moveClip, addCaption, addAudioTrack, toSRT, toVTT };
 })(window);
