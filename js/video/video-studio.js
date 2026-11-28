@@ -67,7 +67,7 @@
       ...t.audioTracks.map(a => a.startTime + audioTrackDuration(a))));
   }
   function snapTime(seconds, fps) { const rate = [24,25,30,60].includes(Number(fps)) ? Number(fps) : 30; return Math.round(Math.max(0, Number(seconds) || 0) * rate) / rate; }
-  function audioTrackDuration(track) { const a = createAudioTrack(track, 1); const end = a.trimEnd > a.trimStart ? a.trimEnd : a.assetDuration; const available = Math.max(0, end - a.trimStart); return a.duration > 0 ? Math.min(a.duration, available || a.duration) : available; }
+  function audioTrackDuration(track) { const a = createAudioTrack(track, 1); const start = a.assetDuration > 0 ? Math.min(a.trimStart,a.assetDuration) : a.trimStart; const end = a.trimEnd > start ? (a.assetDuration > 0 ? Math.min(a.trimEnd,a.assetDuration) : a.trimEnd) : a.assetDuration; const available = Math.max(0,end-start); if(a.assetDuration>0)return a.duration>0?Math.min(a.duration,available):available; return a.duration>0?a.duration:available; }
   function addClip(timeline, input) {
     const t = normalizeTimeline(timeline);
     if (t.clips.length >= LIMITS.clips) throw new Error('Video timeline clip limit reached.');
