@@ -19,7 +19,7 @@ test('episode grouping covers every chapter without overlap', () => {
   const plan = story.createFallbackPlan(input);
   const episodes = story.groupEpisodes(plan, 2);
   assert.equal(episodes.length, 5);
-  assert.deepEqual(episodes.map(ep => [ep.chapterStart, ep.chapterEnd]), [[1,2],[3,4],[5,6],[7,8],[9,10]]);
+  assert.equal(JSON.stringify(episodes.map(ep => [ep.chapterStart, ep.chapterEnd])), JSON.stringify([[1,2],[3,4],[5,6],[7,8],[9,10]]));
 });
 
 test('AI JSON response is normalized and numbered', () => {
