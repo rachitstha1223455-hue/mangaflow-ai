@@ -16,7 +16,7 @@ test('static HTML contains no duplicate element IDs', () => {
   assert.deepEqual([...new Set(duplicates)],[]);
 });
 test('the project data module loads after all of its model dependencies', () => {
-  const order=['js/comic/comic-studio.js','js/audio/audio-studio.js','js/video/video-studio.js','js/core/project-data.js'];
+  const order=['js/comic/comic-studio.js','js/audio/audio-studio.js','js/video/video-studio.js','js/core/project-data.js','js/core/project-bundle.js'];
   const positions=order.map(ref=>html.indexOf('src="'+ref+'"'));
   assert.ok(positions.every(position=>position>=0));
   assert.deepEqual(positions,[...positions].sort((a,b)=>a-b));
