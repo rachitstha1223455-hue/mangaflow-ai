@@ -20,3 +20,11 @@ test('rejects invalid or corrupted portable bundles',async()=>{
  const bytes=new Uint8Array(await zip.arrayBuffer());bytes[60]^=1;
  await assert.rejects(()=>B.readBundle(new Blob([bytes])),/not a MangaFlow|integrity/);
 });
+
+test('rejects duplicate media IDs and unsafe manifest paths',async()=>{
+ const duplicate=await B.createBundle({projects:[]},[
+  {id:'same-id',name:'one.bin',blob:new Blob(['one'])},
+  {id:'same-id',name:'two.bin',blob:new Blob(['two'])}
+ ]);
+ await assert.rejects(()=>B.readBundle(duplicate),/duplicate media IDs/);
+});
