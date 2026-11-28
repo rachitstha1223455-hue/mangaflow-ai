@@ -75,3 +75,24 @@ The Story Generator now includes a chapter and episode planner.
 ### Story planner limitations
 
 The offline fallback is a reusable structural outline, not a language model and not a substitute for creative AI writing. AI plan quality depends on the connected provider and model. The planner does not yet provide a full chapter editor, automatic character/location/prop extraction, or semantic scene analysis; those belong to later phases.
+
+
+## Phase 2.3 — Character, location and prop story bible
+
+The Character Studio now contains three reusable databases and an AI-assisted story extraction action.
+
+- Extract story-supported characters, locations and important props from the generated blueprint, chapter plan, idea, or pasted script.
+- Character records include role, appearance/personality description, permanent visual locks, motivation and relationships.
+- Location records include type, environment description, landmarks, lighting and palette.
+- Prop records include type, description, owner and permanent visual details.
+- New records receive stable IDs using `CHAR-###`, `LOC-###`, and `PROP-###` formats.
+- Duplicate names within an extraction are removed, and names already in the relevant database are skipped.
+- AI output is parsed and validated before anything is added. If extraction fails, no partial records are imported.
+- Manual record creation and deletion remain available.
+- Export the full story bible as JSON.
+- Project saves and restores include characters, locations and props. Older projects and older JSON backups without the new arrays remain supported.
+- Unit tests cover normalization, duplicate handling, stable IDs, malformed responses and extraction limits.
+
+### Story bible limitations
+
+Extraction quality depends on the selected AI model and the detail in the source story. The extractor is instructed not to invent unknown facts, but every extracted record still needs human review. Manual editing of existing records and automatic scene-to-entity linking are not implemented yet. Those are planned for later continuity and scene-production work.
