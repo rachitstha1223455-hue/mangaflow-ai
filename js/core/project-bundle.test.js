@@ -21,10 +21,25 @@ test('rejects invalid or corrupted portable bundles',async()=>{
  await assert.rejects(()=>B.readBundle(new Blob([bytes])),/not a MangaFlow|integrity/);
 });
 
-test('rejects duplicate media IDs and unsafe manifest paths',async()=>{
+test('rejects duplicate media IDs in the asset manifest',async()=>{
  const duplicate=await B.createBundle({projects:[]},[
   {id:'same-id',name:'one.bin',blob:new Blob(['one'])},
   {id:'same-id',name:'two.bin',blob:new Blob(['two'])}
  ]);
  await assert.rejects(()=>B.readBundle(duplicate),/duplicate media IDs/);
+});
+
+test('rejects duplicate ZIP entry names before reading the manifest assets',async()=>{
+ const zip=await B.createBundle({projects:[]},[
+  {id:'first',name:'first.bin',blob:new Blob(['one'])},
+  {id:'second',name:'second.bin',blob:new Blob(['two'])}
+ ]);
+ const bytes=new Uint8Array(await zip.arrayBuffer()),view=new DataView(bytes.buffer);
+ const firstNameLength=view.getUint16(26,true),firstExtraLength=view.getUint16(28,true),firstSize=view.getUint32(18,true);
+ const secondOffset=30+firstNameLength+firstExtraLength+firstSize;
+ const secondNameLength=view.getUint16(secondOffset+26,true);
+ assert.equal(firstNameLength,secondNameLength);
+ const firstName=bytes.slice(30,30+firstNameLength);
+ bytes.set(firstName,secondOffset+30);
+ await assert.rejects(()=>B.readBundle(new Blob([bytes])),/duplicate ZIP entry/);
 });
