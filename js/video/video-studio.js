@@ -36,7 +36,7 @@
       audioAssetId: clean(x.audioAssetId, 120), title: clean(x.title, 180) || 'Audio track ' + number,
       kind: ['dialogue','narration','music','sfx'].includes(x.kind) ? x.kind : 'dialogue',
       startTime: clamp(x.startTime, 0, LIMITS.duration, 0),
-      duration: clamp(x.duration, 0, LIMITS.duration, 0),
+      duration: clamp(x.duration, 0, LIMITS.duration, 0), assetDuration: clamp(x.assetDuration, 0, LIMITS.duration, 0),
       volume: clamp(x.volume, 0, 1, 1), muted: Boolean(x.muted)
     };
   }
@@ -62,7 +62,7 @@
     return Math.min(LIMITS.duration, Math.max(0,
       ...t.clips.map(c => c.startTime + c.duration),
       ...t.captions.map(c => c.endTime),
-      ...t.audioTracks.map(a => a.startTime + a.duration)));
+      ...t.audioTracks.map(a => a.startTime + (a.duration || a.assetDuration))));
   }
   function addClip(timeline, input) {
     const t = normalizeTimeline(timeline);

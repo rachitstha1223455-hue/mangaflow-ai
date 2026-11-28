@@ -34,16 +34,27 @@
       videoTimeline=t; renderVideoStudio(); videoStatus('Added '+added+' comic panels. Existing artwork references are reused from local IndexedDB.');
     } catch(e) { videoStatus(e.message); }
   }
-  function addVideoAudioQueue() {
+  async function readAudioAssetDuration(id) {
+    const AudioCtor=global.AudioContext||global.webkitAudioContext;
+    if(!AudioCtor||!global.MangaFlowStorage)return 0;
+    let context;
+    try { const record=await MangaFlowStorage.getAsset(id);if(!record||!record.blob)return 0;context=new AudioCtor();const decoded=await context.decodeAudioData(await record.blob.arrayBuffer());return decoded.duration||0; }
+    catch(error) { return 0; }
+    finally { if(context)try{await context.close()}catch(error){} }
+  }
+  async function addVideoAudioQueue() {
     if (!Array.isArray(audioQueue) || !audioQueue.length) { videoStatus('Audio queue is empty. Add or import audio in Audio Studio first.'); return; }
-    let t=ensureTimeline(), cursor=t.audioTracks.reduce((m,a)=>Math.max(m,a.startTime+a.duration),0), added=0;
+    let t=ensureTimeline(), cursor=t.audioTracks.reduce((m,a)=>Math.max(m,a.startTime+(a.duration||a.assetDuration||0)),0), added=0;
     try {
-      audioQueue.filter(a=>a.audioAssetId).forEach(item => {
-        t=MangaFlowVideo.addAudioTrack(t,{audioAssetId:item.audioAssetId,title:item.speaker||item.fileName||item.id,kind:item.kind,startTime:cursor,duration:item.duration||0,volume:1});
-        cursor += item.duration || 0; added++;
-      });
+      const items=audioQueue.filter(a=>a.audioAssetId);
+      for(const item of items) {
+        videoStatus('Reading audio duration: '+(item.fileName||item.id)+'…');
+        const assetDuration=await readAudioAssetDuration(item.audioAssetId);
+        t=MangaFlowVideo.addAudioTrack(t,{audioAssetId:item.audioAssetId,title:item.speaker||item.fileName||item.id,kind:item.kind,startTime:cursor,duration:item.duration||0,assetDuration,volume:1});
+        cursor += assetDuration || item.duration || 0; added++;
+      }
       videoTimeline=t; renderVideoStudio();
-      videoStatus(added ? 'Added '+added+' audio assets. Set track start times and volumes below; unknown durations are read from the audio file during export.' : 'No generated or uploaded audio assets were found in the queue.');
+      videoStatus(added ? 'Added '+added+' audio assets with decoded durations where supported. Set start times and volumes below.' : 'No generated or uploaded audio assets were found in the queue.');
     } catch(e) { videoStatus(e.message); }
   }
   function addComicCaptions() {

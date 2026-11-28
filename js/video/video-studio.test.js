@@ -32,6 +32,8 @@ test('tracks audio assets, volumes and timeline duration', () => {
   t = V.addAudioTrack(t,{audioAssetId:'asset-1',startTime:2,duration:8,volume:1.7});
   assert.equal(t.audioTracks[0].volume,1);
   assert.equal(V.duration(t),10);
+  const withAssetLength = V.addAudioTrack(V.createTimeline(),{startTime:3,assetDuration:12});
+  assert.equal(V.duration(withAssetLength),15);
 });
 test('enforces clip, caption and audio collection limits', () => {
   const many = Array.from({length:V.LIMITS.clips+5},(_,i)=>({title:'Clip '+i}));
