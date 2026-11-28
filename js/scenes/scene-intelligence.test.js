@@ -12,7 +12,9 @@ const bible = {
 };
 
 test('offline scene splitter creates scene IDs and links known entities', () => {
-  const longBeat='Mira enters the Glass Citadel. She holds the Ember Compass. '+('The ancient hall echoes with distant footsteps. '.repeat(5));\n  const secondBeat='A shadow moves across the tower. '+('Cold wind moves through the empty courtyard. '.repeat(5));\n  const result=scenes.fallback(longBeat+'\n\n'+secondBeat,bible,180);
+  const longBeat='Mira enters the Glass Citadel. She holds the Ember Compass. '+('The ancient hall echoes with distant footsteps. '.repeat(5));
+  const secondBeat='A shadow moves across the tower. '+('Cold wind moves through the empty courtyard. '.repeat(5));
+  const result=scenes.fallback(longBeat+'\n\n'+secondBeat,bible,180);
   assert.ok(result.length>=2);
   assert.equal(result[0].id,'SCENE-001');
   assert.ok(result.some(s=>s.characters.includes('CHAR-001')));
