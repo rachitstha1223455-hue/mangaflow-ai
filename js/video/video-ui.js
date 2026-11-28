@@ -3,7 +3,7 @@
   'use strict';
   let previewFrame = 0, previewStartedAt = 0, previewStartTime = 0, previewPlaying = false;
   let imageCache = Object.create(null);
-  let previewAudioContext = null, previewAudioSources = [];
+  let previewAudioContext = null, previewAudioSources = [], ffmpegPromise = null;
   const $ = id => document.getElementById(id);
   const videoStatus = message => { if ($('videoStatus')) $('videoStatus').textContent = message; };
   function ensureTimeline() {
@@ -239,6 +239,33 @@
     const text=format==='vtt'?MangaFlowVideo.toVTT(ensureTimeline()):MangaFlowVideo.toSRT(ensureTimeline());
     downloadText('mangaflow-subtitles.'+format,text|| (format==='vtt'?'WEBVTT\n':''));
   }
+  async function getFFmpeg() {
+    if(ffmpegPromise)return ffmpegPromise;
+    ffmpegPromise=(async()=>{
+      if(!global.FFmpegWASM){
+        await new Promise((resolve,reject)=>{
+          const script=document.createElement('script');script.src='https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load the optional FFmpeg converter from the internet.'));document.head.appendChild(script);
+        });
+      }
+      if(!global.FFmpegWASM||!global.FFmpegWASM.FFmpeg)throw new Error('The FFmpeg converter did not initialize.');
+      const ffmpeg=new global.FFmpegWASM.FFmpeg(),toBlobURL=global.FFmpegWASM.toBlobURL;
+      if(typeof toBlobURL!=='function')throw new Error('The FFmpeg converter is missing its browser loader.');
+      const base='https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd';
+      await ffmpeg.load({coreURL:await toBlobURL(base+'/ffmpeg-core.js','text/javascript'),wasmURL:await toBlobURL(base+'/ffmpeg-core.wasm','application/wasm')});
+      return ffmpeg;
+    })().catch(error=>{ffmpegPromise=null;throw error;});
+    return ffmpegPromise;
+  }
+  async function convertWebMToMp4(webmBlob) {
+    const ffmpeg=await getFFmpeg();
+    ffmpeg.on('progress',event=>{if(event&&Number.isFinite(event.progress))videoStatus('Converting to MP4 with FFmpeg: '+Math.round(event.progress*100)+'%')});
+    await ffmpeg.writeFile('mangaflow-input.webm',new Uint8Array(await webmBlob.arrayBuffer()));
+    await ffmpeg.exec(['-i','mangaflow-input.webm','-c:v','libx264','-preset','ultrafast','-crf','24','-pix_fmt','yuv420p','-c:a','aac','-b:a','128k','-movflags','+faststart','mangaflow-output.mp4']);
+    const data=await ffmpeg.readFile('mangaflow-output.mp4');
+    const bytes=data instanceof Uint8Array?data:new Uint8Array(data);
+    if(!bytes.length)throw new Error('FFmpeg produced an empty MP4 file.');
+    return new Blob([bytes],{type:'video/mp4'});
+  }
   async function exportVideoWebM() {
     const t=ensureTimeline(),duration=projectEnd(),canvas=$('videoCanvas');
     if(!t.clips.length||duration<=0){videoStatus('Add video clips before exporting.');return}
@@ -282,10 +309,16 @@
         raf=requestAnimationFrame(frame);
       });
       await stopped;
-      const blob=new Blob(chunks,{type:recorder.mimeType||mime||(isMp4?'video/mp4':'video/webm')});
+      let blob=new Blob(chunks,{type:recorder.mimeType||mime||(isMp4?'video/mp4':'video/webm')});
       if(!blob.size)throw new Error('The browser returned an empty video file.');
-      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mangaflow-video.'+extension;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
-      videoStatus('Export complete: '+extension.toUpperCase()+' video ('+(blob.size/1024/1024).toFixed(1)+' MB). Audio tracks included: '+scheduled+'. '+(isMp4?'Native MP4 recording was supported by this browser.':'This browser does not support MP4 recording, so WebM was exported instead. For MP4, use a browser with MediaRecorder video/mp4 support.'));
+      let finalExtension=extension,conversionNote=isMp4?'Native MP4 recording was supported by this browser.':'';
+      if(!isMp4){
+        videoStatus('This browser records WebM. Loading the optional FFmpeg WebAssembly converter to create MP4 (first use downloads about 30 MB)…');
+        try{blob=await convertWebMToMp4(blob);finalExtension='mp4';conversionNote='WebM was converted to MP4 locally in your browser using FFmpeg WebAssembly.'}
+        catch(error){conversionNote='MP4 conversion was unavailable: '+error.message+' The original WebM was saved instead.'}
+      }
+      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mangaflow-video.'+finalExtension;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      videoStatus('Export complete: '+finalExtension.toUpperCase()+' video ('+(blob.size/1024/1024).toFixed(1)+' MB). Audio tracks included: '+scheduled+'. '+conversionNote);
       drawVideoFrame(0);
     } catch(error) { videoStatus('Video export failed: '+error.message); }
     finally { if(raf)cancelAnimationFrame(raf);if(recorder&&recorder.state==='recording')try{recorder.stop()}catch(e){}if(stream)stream.getTracks().forEach(track=>track.stop());if(audioContext)try{await audioContext.close()}catch(e){} }
