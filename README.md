@@ -208,7 +208,7 @@ The stabilization stage adds regression checks and safer browser persistence acr
 
 The application remains a browser-only PWA. LocalStorage and IndexedDB data are device/browser-specific; portable ZIP bundles are the recommended way to move projects with their local media. Browser storage quotas vary by device and browser, and the 50 MB per-file limit does not guarantee that a device has enough remaining storage. Offline mode can use the precached application shell and modules, but online AI, image generation and remote TTS still require a network connection.
 
-GitHub Actions runs Playwright end-to-end checks in bundled Chromium, Google Chrome, Microsoft Edge, Firefox and WebKit. Project save/reopen, JSON backup, portable media bundles, large IndexedDB blobs and offline reopening are exercised on Chromium/Chrome/Edge/Firefox; startup and responsive layout are also checked in WebKit. A short video render is tested in bundled Chromium. This is automated desktop browser coverage plus a mobile-sized viewport, not a substitute for hands-on testing on physical Android/iOS devices or Windows-specific hardware. A successful CI run does not claim those physical-device checks were performed.
+GitHub Actions runs Playwright end-to-end checks in bundled Chromium, Google Chrome and Microsoft Edge. Project save/reopen, JSON backup, portable media bundles, large IndexedDB blobs, offline reopening and mobile-sized layout are checked in all three browser projects. A short video render is tested in bundled Chromium. This is automated desktop browser coverage plus a mobile-sized viewport, not a substitute for hands-on testing on physical Android/iOS devices or Windows-specific hardware. A successful CI run does not claim those physical-device checks were performed.
 
 
 ## Phase 2.8.1 — Final QA and media portability
@@ -217,5 +217,5 @@ GitHub Actions runs Playwright end-to-end checks in bundled Chromium, Google Chr
 - Removed the former 10-minute export cap and aligned the app's maximum render window with its 60-minute timeline model.
 - Synchronized audio preview and export; added decoded waveform overview, source trim in/out, frame-aligned timeline timing, per-track volume, fades and master volume.
 - Added portable ZIP bundles that include all IndexedDB media assets as well as project metadata. The existing lightweight JSON backup remains available and compatible.
-- Added Playwright end-to-end regression tests across Chromium, Google Chrome, Microsoft Edge, Firefox and WebKit, including project save/reopen, JSON backup round-trip, large IndexedDB media persistence, portable bundle restoration, offline reopening, mobile viewport layout and a short Chromium video render.
+- Added Playwright end-to-end regression tests across bundled Chromium, Google Chrome and Microsoft Edge, including project save/reopen, JSON backup round-trip, large IndexedDB media persistence, portable bundle restoration, offline reopening, mobile viewport layout and a short Chromium video render.
 - CI cannot physically test every browser/device combination. Manual verification on Windows Edge and real Android/iOS devices remains a release checklist item.
