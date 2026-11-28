@@ -15,7 +15,8 @@ const PRECACHE = [
   './js/audio/audio-ui.js',
   './js/video/video-studio.js',
   './js/video/video-ui.js',
-  './js/core/project-data.js'
+  './js/core/project-data.js',
+  './js/core/project-bundle.js'
 ];
 
 self.addEventListener('install', event => {
