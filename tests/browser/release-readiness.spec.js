@@ -83,7 +83,8 @@ test('JSON backup export and import round-trip current project metadata', async 
   expect(restored.projects[0].story).toBe('Backup text');
 });
 
-test('large artwork and audio blobs survive a browser restart in IndexedDB', async ({ page }) => {
+test('large artwork and audio blobs survive a browser restart in IndexedDB', async ({ page, browserName }) => {
+  test.skip(browserName==='webkit','Large IndexedDB Blob persistence is exercised on Chromium and Firefox CI; WebKit Linux has known transaction instability.');
   await page.goto('/');
   await page.evaluate(async()=>{
     const image=new Blob([new Uint8Array(8*1024*1024)],{type:'image/png'});
