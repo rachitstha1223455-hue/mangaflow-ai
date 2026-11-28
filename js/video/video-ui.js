@@ -92,9 +92,12 @@
   function removeVideoCaption(index) { const t=ensureTimeline(); t.captions.splice(index,1); videoTimeline=t; renderVideoStudio(); }
   function updateVideoAudio(index,field,value) {
     const t=ensureTimeline(), a=t.audioTracks[index]; if(!a)return;
-    const next=Object.assign({},a); next[field]=['startTime','duration','volume'].includes(field)?Number(value):value;
+    const next=Object.assign({},a); next[field]=['startTime','duration','volume','trimStart','trimEnd','fadeIn','fadeOut'].includes(field)?Number(value):value;
     if(field==='muted')next.muted=Boolean(value);
-    t.audioTracks[index]=MangaFlowVideo.createAudioTrack(next,index+1); videoTimeline=t; renderVideoStudio();
+    t.audioTracks[index]=MangaFlowVideo.createAudioTrack(next,index+1);
+    if(field==='startTime')t.audioTracks[index].startTime=MangaFlowVideo.snapTime(t.audioTracks[index].startTime,t.fps);
+    if(field==='duration'&&t.audioTracks[index].duration>0)t.audioTracks[index].duration=Math.max(1/t.fps,MangaFlowVideo.snapTime(t.audioTracks[index].duration,t.fps));
+    videoTimeline=t; renderVideoStudio();
   }
   function removeVideoAudio(index) { const t=ensureTimeline(); t.audioTracks.splice(index,1); videoTimeline=t; renderVideoStudio(); }
   function setVideoResolution(value) {
@@ -267,7 +270,7 @@
         audioDestination.stream.getAudioTracks().forEach(track=>stream.addTrack(track));
       }
       const types=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
-      const mime=types.find(type=>MediaRecorder.isTypeSupported(type));
+      const mime=types.find(type=>typeof MediaRecorder.isTypeSupported==='function'&&MediaRecorder.isTypeSupported(type));
       recorder=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:t.width===1920?6000000:3500000}:undefined);
       const isMp4=(recorder.mimeType||mime||'').toLowerCase().includes('mp4'),extension=isMp4?'mp4':'webm';
       const chunks=[];recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
@@ -286,7 +289,7 @@
     } catch(error) { videoStatus('Video export failed: '+error.message); }
     finally { if(raf)cancelAnimationFrame(raf);if(recorder&&recorder.state==='recording')try{recorder.stop()}catch(e){}if(stream)stream.getTracks().forEach(track=>track.stop());if(audioContext)try{await audioContext.close()}catch(e){} }
   }
-  function setVideoMasterVolume(value){const t=ensureTimeline();t.masterVolume=Math.max(0,Math.min(1,Number(value)||0));videoTimeline=t;}
+  function setVideoMasterVolume(value){const t=ensureTimeline();t.masterVolume=Math.max(0,Math.min(1,Number(value)||0));videoTimeline=t;if($('videoMasterVolumeLabel'))$('videoMasterVolumeLabel').textContent=Math.round(t.masterVolume*100)+'%';}
   async function renderAudioWaveforms(){
     const t=ensureTimeline(),AudioCtor=global.AudioContext||global.webkitAudioContext;if(!AudioCtor||!global.MangaFlowStorage)return;
     for(let i=0;i<t.audioTracks.length;i++){const track=t.audioTracks[i],canvas=$('audio-waveform-'+i);if(!canvas||!track.audioAssetId)continue;
