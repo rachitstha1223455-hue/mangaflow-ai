@@ -178,7 +178,7 @@ test('storyboard artwork, narration audio and subtitles form a persistent video 
 test('short browser video render creates a non-empty downloadable media file', async ({ page }, testInfo) => {
   test.setTimeout(120000);
   test.skip(testInfo.project.name!=='chromium','MediaRecorder canvas export is exercised in Chromium CI.');
-  await page.addInitScript(()=>{window.FFmpegWASM={FFmpeg:class{on(){}async load(){}async writeFile(){}async exec(){}async readFile(){const data=new Uint8Array(2048);data.set([0,0,0,24,102,116,121,112,105,115,111,109]);return data;}},toBlobURL:async url=>url};});
+  await page.addInitScript(()=>{window.FFmpegWASM={FFmpeg:class{on(){}async load(){}async writeFile(){}async exec(){}async readFile(){return new Uint8Array([0,0,0,16,102,116,121,112,105,115,111,109,0,0,0,0,0,0,0,12,109,111,111,118,1,2,3,4,0,0,0,12,109,100,97,116,5,6,7,8]);}},toBlobURL:async url=>url};});
   await page.goto('/');
   await page.getByRole('button',{name:/Video/}).click();
   await page.evaluate(()=>{
