@@ -7,6 +7,9 @@
     onlineModel: '',
     imageEndpoint: '',
     imageModel: '',
+    ttsEndpoint: '',
+    ttsModel: '',
+    ttsVoice: 'alloy',
     localEndpoint: 'http://localhost:11434/v1/chat/completions',
     localModel: 'qwen2.5:3b',
     timeoutMs: 45000
@@ -18,6 +21,9 @@
     value.onlineModel = String(value.onlineModel || '').trim();
     value.imageEndpoint = String(value.imageEndpoint || '').trim();
     value.imageModel = String(value.imageModel || '').trim();
+    value.ttsEndpoint = String(value.ttsEndpoint || '').trim();
+    value.ttsModel = String(value.ttsModel || '').trim();
+    value.ttsVoice = String(value.ttsVoice || 'alloy').trim().slice(0, 120);
     value.localEndpoint = String(value.localEndpoint || DEFAULTS.localEndpoint).trim();
     value.localModel = String(value.localModel || DEFAULTS.localModel).trim();
     value.timeoutMs = Math.min(120000, Math.max(5000, Number(value.timeoutMs) || DEFAULTS.timeoutMs));
@@ -132,5 +138,41 @@
       throw error;
     } finally { clearTimeout(timer); }
   }
-  global.MangaFlowAI = { defaults: DEFAULTS, cleanConfig, generate, test, generateImage };
+
+  async function synthesizeSpeech(text, settings, voice, onStatus) {
+    const config = cleanConfig(settings);
+    if (!config.ttsEndpoint || !config.ttsModel) throw new Error('Configure a text-to-speech endpoint and model in AI Settings first.');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), Math.max(config.timeoutMs, 90000));
+    try {
+      if (typeof onStatus === 'function') onStatus('Generating speech audio…');
+      const response = await fetch(endpointUrl(config.ttsEndpoint), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: config.ttsModel, input: String(text || ''),
+          voice: String(voice || config.ttsVoice || 'alloy'), response_format: 'mp3' }),
+        signal: controller.signal
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        const detail = payload.error && (payload.error.message || payload.error) || payload.message || ('HTTP ' + response.status);
+        throw new Error(String(detail));
+      }
+      const type = response.headers.get('content-type') || 'audio/mpeg';
+      if (type.includes('application/json')) {
+        const payload = await response.json();
+        if (!payload.audio && !payload.b64_json) throw new Error('TTS JSON response must include audio or b64_json base64 data.');
+        const binary = atob(payload.audio || payload.b64_json);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return { blob: new Blob([bytes], { type: payload.mime_type || 'audio/mpeg' }), engine: 'TTS provider' };
+      }
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('TTS provider returned an empty audio file.');
+      return { blob, engine: 'TTS provider' };
+    } catch (error) {
+      if (error.name === 'AbortError') throw new Error('Speech generation timed out.');
+      throw error;
+    } finally { clearTimeout(timer); }
+  }
+  global.MangaFlowAI = { defaults: DEFAULTS, cleanConfig, generate, test, generateImage, synthesizeSpeech };
 })(window);
