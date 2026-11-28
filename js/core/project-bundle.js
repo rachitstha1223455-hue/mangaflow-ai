@@ -50,6 +50,8 @@
       const nameStart=offset+30,name=decoder.decode(bytes.slice(nameStart,nameStart+nameLen)),dataStart=nameStart+nameLen+extraLen,dataEnd=dataStart+size;
       if(dataEnd>bytes.length)throw new Error('Portable bundle is damaged (truncated file data).');
       const data=bytes.slice(dataStart,dataEnd);if(crc32(data)!==crc)throw new Error('Portable bundle failed its integrity check: '+name);
+      if(files.has(name))throw new Error('Portable bundle contains a duplicate ZIP entry: '+name);
+      if(files.size>=5001)throw new Error('Portable bundle contains too many ZIP entries.');
       files.set(name,data);offset=dataEnd;
     }
     const manifestBytes=files.get('mangaflow-bundle.json');
