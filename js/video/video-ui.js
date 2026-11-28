@@ -3,6 +3,7 @@
   'use strict';
   let previewFrame = 0, previewStartedAt = 0, previewStartTime = 0, previewPlaying = false;
   let imageCache = Object.create(null);
+  let previewAudioContext = null, previewAudioSources = [];
   const $ = id => document.getElementById(id);
   const videoStatus = message => { if ($('videoStatus')) $('videoStatus').textContent = message; };
   function ensureTimeline() {
@@ -175,14 +176,39 @@
     if($('videoTimeLabel'))$('videoTimeLabel').textContent=formatTime(time)+' / '+formatTime(projectEnd());
   }
   function formatTime(seconds) { const n=Math.max(0,Number(seconds)||0);return Math.floor(n/60)+':'+String(Math.floor(n%60)).padStart(2,'0')+'.'+String(Math.floor(n*10)%10); }
+  async function stopPreviewAudio() { const ctx=previewAudioContext; previewAudioContext=null; previewAudioSources.forEach(source=>{try{source.stop()}catch(e){}}); previewAudioSources=[]; if(ctx)try{await ctx.close()}catch(e){} }
+  async function startPreviewAudio(atTime) {
+    await stopPreviewAudio(); const t=ensureTimeline(),AudioCtor=global.AudioContext||global.webkitAudioContext;
+    if(!AudioCtor||!t.audioTracks.length||!global.MangaFlowStorage)return;
+    const ctx=new AudioCtor();previewAudioContext=ctx;await ctx.resume();
+    for(const track of t.audioTracks){
+      if(!track.audioAssetId||track.muted||track.volume<=0)continue;
+      try{
+        const record=await MangaFlowStorage.getAsset(track.audioAssetId);if(!record||!record.blob)continue;
+        const buffer=await ctx.decodeAudioData(await record.blob.arrayBuffer());
+        const trimStart=Math.min(buffer.duration,track.trimStart||0),trimEnd=track.trimEnd>trimStart?Math.min(buffer.duration,track.trimEnd):buffer.duration;
+        const fullDuration=Math.max(0,trimEnd-trimStart),trackDuration=track.duration>0?Math.min(track.duration,fullDuration):fullDuration;
+        const elapsed=Math.max(0,atTime-track.startTime),offset=trimStart+elapsed,remaining=trackDuration-elapsed;
+        if(atTime>=track.startTime+trackDuration||remaining<=0||offset>=trimEnd)continue;
+        const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=buffer;
+        const master=t.masterVolume==null?1:t.masterVolume,level=track.volume*master,fadeIn=Math.max(0,track.fadeIn||0),fadeOut=Math.max(0,track.fadeOut||0),local=elapsed;
+        const current=fadeIn>0&&local<fadeIn?level*local/fadeIn:level;
+        gain.gain.setValueAtTime(Math.max(0,current),ctx.currentTime);
+        if(fadeIn>local)gain.gain.linearRampToValueAtTime(level,ctx.currentTime+(fadeIn-local));
+        const fadeStart=Math.max(0,trackDuration-fadeOut);
+        if(fadeOut>0&&elapsed+remaining>=fadeStart)gain.gain.setValueAtTime(level,ctx.currentTime+Math.max(0,fadeStart-elapsed)),gain.gain.linearRampToValueAtTime(0,ctx.currentTime+remaining);
+        source.connect(gain).connect(ctx.destination);source.start(0,offset,Math.min(remaining,trimEnd-offset));previewAudioSources.push(source);
+      }catch(error){videoStatus('Preview skipped an unavailable audio asset: '+track.title)}
+    }
+  }
   function seekVideoPreview(value) { pauseVideoPreview();drawVideoFrame(Number(value)||0); }
   async function playVideoPreview() {
     if(!ensureTimeline().clips.length){videoStatus('Add scenes or comic panels to the timeline first.');return}
-    pauseVideoPreview(); await prepareVideoImages(); previewStartTime=Number($('videoPlayhead').value)||0;previewStartedAt=performance.now();previewPlaying=true;
+    pauseVideoPreview(); await prepareVideoImages(); previewStartTime=Number($('videoPlayhead').value)||0;await startPreviewAudio(previewStartTime);previewStartedAt=performance.now();previewPlaying=true;
     const tick=now=>{if(!previewPlaying)return;const time=previewStartTime+(now-previewStartedAt)/1000;if(time>=projectEnd()){previewPlaying=false;drawVideoFrame(projectEnd());return}drawVideoFrame(time);previewFrame=requestAnimationFrame(tick)};
     previewFrame=requestAnimationFrame(tick);
   }
-  function pauseVideoPreview() { previewPlaying=false;if(previewFrame)cancelAnimationFrame(previewFrame); }
+  function pauseVideoPreview() { previewPlaying=false;if(previewFrame)cancelAnimationFrame(previewFrame);stopPreviewAudio(); }
   function renderVideoStudio() {
     const t=ensureTimeline(),list=$('videoClipList'),captions=$('videoCaptionList'),audio=$('videoAudioList'),canvas=$('videoCanvas');
     if(!list||!canvas)return;
@@ -197,10 +223,12 @@
       '<div class="actions"><button class="secondary" onclick="seekVideoPreview('+c.startTime+')">Preview</button><button class="secondary" onclick="moveVideoClip('+i+',-1)">↑</button><button class="secondary" onclick="moveVideoClip('+i+',1)">↓</button><button class="danger" onclick="removeVideoClip('+i+')">Remove</button></div></div>';
     }).join(''):'<p class="muted">Timeline is empty. Add a scene plan or comic panels.</p>';
     captions.innerHTML=t.captions.length?t.captions.map((c,i)=>'<div class="video-clip"><b>'+esc(c.language+' subtitle '+(i+1))+'</b><textarea onchange="updateVideoCaption('+i+',\'text\',this.value)">'+esc(c.text)+'</textarea><div class="video-fields"><label>Start<input type="number" min="0" step="0.1" value="'+c.startTime+'" onchange="updateVideoCaption('+i+',\'startTime\',this.value)"></label><label>End<input type="number" min="0.1" step="0.1" value="'+c.endTime+'" onchange="updateVideoCaption('+i+',\'endTime\',this.value)"></label><label>Language<select onchange="updateVideoCaption('+i+',\'language\',this.value)">'+options(['Hindi','English'],c.language)+'</select></label></div><button class="danger" onclick="removeVideoCaption('+i+')">Remove subtitle</button></div>').join(''):'<p class="muted">No subtitles added.</p>';
-    audio.innerHTML=t.audioTracks.length?t.audioTracks.map((a,i)=>'<div class="video-clip"><b>'+esc(a.title)+' · '+esc(a.kind)+'</b><div class="muted">'+esc(a.audioAssetId||'No local audio asset')+'</div><div class="video-fields"><label>Start (sec)<input type="number" min="0" step="0.5" value="'+a.startTime+'" onchange="updateVideoAudio('+i+',\'startTime\',this.value)"></label><label>Duration (0 = full file)<input type="number" min="0" step="0.5" value="'+a.duration+'" onchange="updateVideoAudio('+i+',\'duration\',this.value)"></label><label>Volume<input type="number" min="0" max="1" step="0.1" value="'+a.volume+'" onchange="updateVideoAudio('+i+',\'volume\',this.value)"></label><label>Muted<select onchange="updateVideoAudio('+i+',\'muted\',this.value===\'true\')">'+options(['false','true'],String(a.muted))+'</select></label></div><button class="danger" onclick="removeVideoAudio('+i+')">Remove audio</button></div>').join(''):'<p class="muted">No audio tracks. Import generated/uploaded audio from Audio Studio.</p>';
+    audio.innerHTML=t.audioTracks.length?t.audioTracks.map((a,i)=>'<div class="video-clip"><b>'+esc(a.title)+' · '+esc(a.kind)+'</b><div class="muted">'+esc(a.audioAssetId||'No local audio asset')+'</div><canvas id="audio-waveform-'+i+'" class="audio-waveform" width="640" height="64" aria-label="Audio waveform"></canvas><div class="video-fields"><label>Timeline start (sec)<input type="number" min="0" step="'+(1/t.fps).toFixed(4)+'" value="'+a.startTime+'" onchange="updateVideoAudio('+i+',\'startTime\',this.value)"></label><label>Playback duration (0 = full trimmed file)<input type="number" min="0" step="'+(1/t.fps).toFixed(4)+'" value="'+a.duration+'" onchange="updateVideoAudio('+i+',\'duration\',this.value)"></label><label>Trim in (source sec)<input type="number" min="0" step="0.01" value="'+a.trimStart+'" onchange="updateVideoAudio('+i+',\'trimStart\',this.value)"></label><label>Trim out (source sec, 0 = end)<input type="number" min="0" step="0.01" value="'+a.trimEnd+'" onchange="updateVideoAudio('+i+',\'trimEnd\',this.value)"></label><label>Volume<input type="number" min="0" max="1" step="0.05" value="'+a.volume+'" onchange="updateVideoAudio('+i+',\'volume\',this.value)"></label><label>Fade in (sec)<input type="number" min="0" max="30" step="0.1" value="'+a.fadeIn+'" onchange="updateVideoAudio('+i+',\'fadeIn\',this.value)"></label><label>Fade out (sec)<input type="number" min="0" max="30" step="0.1" value="'+a.fadeOut+'" onchange="updateVideoAudio('+i+',\'fadeOut\',this.value)"></label><label>Muted<select onchange="updateVideoAudio('+i+',\'muted\',this.value===\'true\')">'+options(['false','true'],String(a.muted))+'</select></label></div><button class="danger" onclick="removeVideoAudio('+i+')">Remove audio</button></div>').join(''):'<p class="muted">No audio tracks. Import generated/uploaded audio from Audio Studio.</p>';
     $('videoPlayhead').max=String(Math.max(1,projectEnd()));$('videoPlayhead').value=String(Math.min(Number($('videoPlayhead').value)||0,projectEnd()));
     drawVideoFrame(Number($('videoPlayhead').value)||0);
     $('videoSummary').textContent=t.clips.length+' clips · '+t.captions.length+' subtitles · '+t.audioTracks.length+' audio tracks · '+formatTime(projectEnd())+' total';
+    if($('videoMasterVolume'))$('videoMasterVolume').value=String(t.masterVolume==null?1:t.masterVolume);
+    renderAudioWaveforms();
   }
   function options(values,selected){return values.map(v=>'<option value="'+v+'" '+(String(v)===String(selected)?'selected':'')+'>'+v+'</option>').join('')}
   function exportVideoSubtitles(format) {
@@ -210,47 +238,64 @@
   async function exportVideoWebM() {
     const t=ensureTimeline(),duration=projectEnd(),canvas=$('videoCanvas');
     if(!t.clips.length||duration<=0){videoStatus('Add video clips before exporting.');return}
-    if(duration>600){videoStatus('This browser export is limited to 10 minutes per render to reduce memory and stability problems. Split longer projects into parts.');return}
-    if(!canvas.captureStream||!global.MediaRecorder){videoStatus('This browser does not support canvas capture and MediaRecorder. Try an up-to-date Chrome or Edge browser.');return}
+    if(duration>MangaFlowVideo.LIMITS.renderSeconds){videoStatus('This browser renderer supports timelines up to 60 minutes. Split longer projects into separate parts.');return}
+    if(!canvas.captureStream||!global.MediaRecorder){videoStatus('This browser does not support canvas capture and MediaRecorder. Try a recent Chrome, Edge or Safari release.');return}
     pauseVideoPreview();videoStatus('Preparing artwork and audio assets…');
+    let stream=null,audioContext=null,recorder=null,raf=0;
     try {
       await prepareVideoImages();
-      const stream=canvas.captureStream(t.fps);
-      let audioContext=null, audioDestination=null, scheduled=0;
-      if(t.audioTracks.length&& (global.AudioContext||global.webkitAudioContext)) {
+      stream=canvas.captureStream(t.fps);
+      let audioDestination=null,scheduled=0;
+      if(t.audioTracks.length&&(global.AudioContext||global.webkitAudioContext)) {
         const AudioCtor=global.AudioContext||global.webkitAudioContext;audioContext=new AudioCtor();await audioContext.resume();
         audioDestination=audioContext.createMediaStreamDestination();
         for(const track of t.audioTracks) {
           if(!track.audioAssetId||track.muted||track.volume<=0)continue;
           const record=await MangaFlowStorage.getAsset(track.audioAssetId);if(!record||!record.blob)continue;
           const buffer=await audioContext.decodeAudioData(await record.blob.arrayBuffer());
-          const source=audioContext.createBufferSource(),gain=audioContext.createGain();
-          source.buffer=buffer;gain.gain.value=track.volume;source.connect(gain).connect(audioDestination);
-          const start=Math.max(0,track.startTime),remaining=Math.max(0,buffer.duration);
-          if(start>=duration)continue;
-          source.start(audioContext.currentTime+start,0,Math.min(remaining,track.duration>0?track.duration:remaining,duration-start));scheduled++;
+          const trimStart=Math.min(buffer.duration,track.trimStart||0),trimEnd=track.trimEnd>trimStart?Math.min(buffer.duration,track.trimEnd):buffer.duration;
+          const available=Math.max(0,trimEnd-trimStart),playDuration=track.duration>0?Math.min(track.duration,available):available;
+          const start=Math.max(0,track.startTime);if(start>=duration||playDuration<=0)continue;
+          const source=audioContext.createBufferSource(),gain=audioContext.createGain();source.buffer=buffer;
+          const level=track.volume*(t.masterVolume==null?1:t.masterVolume),fadeIn=Math.min(track.fadeIn||0,playDuration),fadeOut=Math.min(track.fadeOut||0,playDuration);
+          gain.gain.setValueAtTime(0,audioContext.currentTime+start);
+          if(fadeIn>0){gain.gain.linearRampToValueAtTime(level,audioContext.currentTime+start+fadeIn)}else gain.gain.setValueAtTime(level,audioContext.currentTime+start);
+          if(fadeOut>0){gain.gain.setValueAtTime(level,audioContext.currentTime+start+Math.max(0,playDuration-fadeOut));gain.gain.linearRampToValueAtTime(0,audioContext.currentTime+start+playDuration)}
+          source.connect(gain).connect(audioDestination);
+          source.start(audioContext.currentTime+start,trimStart,Math.min(playDuration,duration-start));scheduled++;
         }
         audioDestination.stream.getAudioTracks().forEach(track=>stream.addTrack(track));
       }
-      const types=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+      const types=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
       const mime=types.find(type=>MediaRecorder.isTypeSupported(type));
-      const recorder=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:t.width===1920?6000000:3500000}:undefined);
+      recorder=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:t.width===1920?6000000:3500000}:undefined);
+      const isMp4=(recorder.mimeType||mime||'').toLowerCase().includes('mp4'),extension=isMp4?'mp4':'webm';
       const chunks=[];recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
       const stopped=new Promise((resolve,reject)=>{recorder.onstop=resolve;recorder.onerror=e=>reject(e.error||new Error('Video recording failed.'))});
       recorder.start(1000);const started=performance.now();
-      await new Promise(resolve=>{
-        const frame=now=>{const elapsed=(now-started)/1000;drawVideoFrame(Math.min(duration,elapsed));videoStatus('Rendering WebM: '+Math.min(100,Math.round(elapsed/duration*100))+'%');if(elapsed>=duration){recorder.stop();resolve()}else requestAnimationFrame(frame)};
-        requestAnimationFrame(frame);
+      await new Promise((resolve,reject)=>{
+        const frame=now=>{if(recorder.state!=='recording'){reject(new Error('The browser stopped recording unexpectedly.'));return}const elapsed=(now-started)/1000;drawVideoFrame(Math.min(duration,elapsed));videoStatus('Rendering '+extension.toUpperCase()+': '+Math.min(100,Math.round(elapsed/duration*100))+'%');if(elapsed>=duration){recorder.stop();resolve()}else raf=requestAnimationFrame(frame)};
+        raf=requestAnimationFrame(frame);
       });
-      await stopped;stream.getTracks().forEach(track=>track.stop());
-      if(audioContext)await audioContext.close();
-      const blob=new Blob(chunks,{type:recorder.mimeType||'video/webm'});
+      await stopped;
+      const blob=new Blob(chunks,{type:recorder.mimeType||mime||(isMp4?'video/mp4':'video/webm')});
       if(!blob.size)throw new Error('The browser returned an empty video file.');
-      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mangaflow-video.webm';a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
-      videoStatus('Export complete: WebM video ('+(blob.size/1024/1024).toFixed(1)+' MB). Audio tracks included: '+scheduled+'. MP4 is not provided by this browser exporter.');
+      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mangaflow-video.'+extension;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+      videoStatus('Export complete: '+extension.toUpperCase()+' video ('+(blob.size/1024/1024).toFixed(1)+' MB). Audio tracks included: '+scheduled+'. '+(isMp4?'Native MP4 recording was supported by this browser.':'This browser does not support MP4 recording, so WebM was exported instead. For MP4, use a browser with MediaRecorder video/mp4 support.'));
       drawVideoFrame(0);
     } catch(error) { videoStatus('Video export failed: '+error.message); }
+    finally { if(raf)cancelAnimationFrame(raf);if(recorder&&recorder.state==='recording')try{recorder.stop()}catch(e){}if(stream)stream.getTracks().forEach(track=>track.stop());if(audioContext)try{await audioContext.close()}catch(e){} }
+  }
+  function setVideoMasterVolume(value){const t=ensureTimeline();t.masterVolume=Math.max(0,Math.min(1,Number(value)||0));videoTimeline=t;}
+  async function renderAudioWaveforms(){
+    const t=ensureTimeline(),AudioCtor=global.AudioContext||global.webkitAudioContext;if(!AudioCtor||!global.MangaFlowStorage)return;
+    for(let i=0;i<t.audioTracks.length;i++){const track=t.audioTracks[i],canvas=$('audio-waveform-'+i);if(!canvas||!track.audioAssetId)continue;
+      try{const record=await MangaFlowStorage.getAsset(track.audioAssetId);if(!record||!record.blob)continue;const ctx=new AudioCtor();const buffer=await ctx.decodeAudioData(await record.blob.arrayBuffer());const data=buffer.getChannelData(0),g=canvas.getContext('2d'),bars=100,step=Math.max(1,Math.floor(data.length/bars));g.clearRect(0,0,canvas.width,canvas.height);g.fillStyle='#8ea4ff';
+        for(let n=0;n<bars;n++){let peak=0;for(let j=0;j<step;j++)peak=Math.max(peak,Math.abs(data[n*step+j]||0));const h=Math.max(2,peak*(canvas.height-8));g.fillRect(n*(canvas.width/bars), (canvas.height-h)/2,Math.max(1,canvas.width/bars-2),h)}
+        const start=Math.min(1,(track.trimStart||0)/buffer.duration),end=track.trimEnd>track.trimStart?Math.min(1,track.trimEnd/buffer.duration):1;g.fillStyle='rgba(255,255,255,.24)';g.fillRect(0,0,start*canvas.width,canvas.height);g.fillRect(end*canvas.width,0,(1-end)*canvas.width,canvas.height);await ctx.close();
+      }catch(error){const g=canvas.getContext('2d');g.fillStyle='#aab3ca';g.font='12px system-ui';g.fillText('Waveform unavailable for this audio format',8,32)}
+    }
   }
   function exportVideoJSON(){downloadText('mangaflow-video-timeline.json',JSON.stringify(MangaFlowVideo.normalizeTimeline(ensureTimeline()),null,2))}
-  Object.assign(global,{renderVideoStudio,addVideoScenes,addVideoComicPages,addVideoAudioQueue,addComicCaptions,addVideoCaption,updateVideoClip,removeVideoClip,moveVideoClip,updateVideoCaption,removeVideoCaption,updateVideoAudio,removeVideoAudio,setVideoResolution,seekVideoPreview,playVideoPreview,pauseVideoPreview,exportVideoSubtitles,exportVideoWebM,exportVideoJSON});
+  Object.assign(global,{renderVideoStudio,addVideoScenes,addVideoComicPages,addVideoAudioQueue,addComicCaptions,addVideoCaption,updateVideoClip,removeVideoClip,moveVideoClip,updateVideoCaption,removeVideoCaption,updateVideoAudio,removeVideoAudio,setVideoResolution,setVideoMasterVolume,seekVideoPreview,playVideoPreview,pauseVideoPreview,exportVideoSubtitles,exportVideoWebM,exportVideoJSON});
 })(window);
