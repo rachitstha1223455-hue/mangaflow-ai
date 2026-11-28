@@ -162,3 +162,23 @@ The Audio Studio adds an ordered dialogue and sound queue that can be saved with
 ### Audio Studio limitations
 
 Actual downloadable voice generation requires a configured TTS service or private proxy and may incur provider compute costs. No API secret is stored in the browser. Browser speech synthesis depends on voices installed by the user's operating system/browser and is only a playback fallback. The current version queues and plays clips sequentially; it does not yet mix, trim, fade, synchronize or master a multitrack soundtrack, and audio blobs remain local in IndexedDB rather than embedded in JSON backups.
+
+
+## Phase 2.7 — Video Production Studio
+
+The Video Studio connects scene planning, comic artwork and generated/uploaded audio into a browser-based timeline.
+
+- Add all planned scenes or comic panels to an ordered video timeline.
+- Set clip start times and durations, reorder clips, and choose zoom/pan motion plus cut/fade transitions.
+- Reuse panel artwork references stored in IndexedDB. Clips without attached art render as title/description cards.
+- Preview the timeline on a canvas with timed Hindi/English subtitle overlays.
+- Add subtitles manually or import dialogue and narration from comic panels; edit subtitle text and timing.
+- Export subtitles as SRT or WebVTT.
+- Import generated/uploaded audio queue assets, set start times, durations, volume and mute state.
+- Export a browser-recorded WebM video with supported audio tracks using Canvas capture, MediaRecorder and Web Audio APIs.
+- Save and restore the normalized video timeline as part of project records. Older projects without a video timeline load with an empty timeline.
+- Export timeline metadata as JSON. Artwork and audio blobs remain in local IndexedDB and are not embedded in JSON backups.
+
+### Video Studio limitations
+
+The current exporter produces **WebM**, not MP4. MP4 encoding is not implemented because browser support and codec availability vary; use a desktop encoder such as FFmpeg to convert WebM to MP4 if needed. Video export requires a modern browser with Canvas captureStream, MediaRecorder and (for audio mixing) Web Audio support. Audio tracks whose local asset is missing are skipped. The browser exporter limits a single render to 10 minutes to reduce memory and stability problems. Export performance depends on device hardware, resolution and frame rate. The timeline is a basic scene-based editor, not a full nonlinear editor: it does not yet provide frame-accurate trimming, waveform editing, professional color grading, transitions beyond cut/fade, or multitrack audio mastering. Test long projects in short segments first.
