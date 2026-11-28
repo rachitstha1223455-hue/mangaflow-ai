@@ -49,7 +49,7 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
 </section>
 
 <section class="page" id="story">
- <div class="card"><h2>✍️ Story Generator</h2><p>Creates a structured original story seed locally. No AI API or internet call is used.</p>
+ <div class="card"><h2>✍️ Story Generator</h2><p>Build an original story blueprint using your configured AI provider, with a built-in fallback when AI is unavailable.</p>
  <label>Story title</label><input id="storyTitle" placeholder="e.g. The Last Celestial Alchemist">
  <label>Genre</label><select id="genre"><option>Murim / Cultivation</option><option>Hunter / Dungeon / System</option><option>Fantasy / Adventure</option><option>Revenge / Regression</option><option>Romance / Drama</option><option>Beast Evolution</option></select>
  <label>Language</label><select id="lang"><option>Hindi</option><option>English</option></select>
@@ -58,6 +58,15 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
  <label>Core idea (optional)</label><textarea id="idea" placeholder="A weak apprentice discovers a forbidden ability..."></textarea>
  <div class="actions"><button onclick="generateStory()">Generate story blueprint</button><button class="secondary" onclick="saveCurrent()">Save project</button></div>
  </div><div class="card"><h3>Generated blueprint</h3><div class="output" id="storyOut">Your story blueprint will appear here.</div><div class="actions"><button class="secondary" onclick="copyOut('storyOut')">Copy</button></div></div>
+<div class="card" id="chapterPlanner">
+<h2>📖 Chapter & Episode Planner</h2>
+<p>Create a structured chapter roadmap. AI mode uses your configured provider; the built-in outline remains available offline.</p>
+<label>Number of chapters</label><select id="chapterCount"><option value="5">5 chapters</option><option value="10" selected>10 chapters</option><option value="15">15 chapters</option><option value="20">20 chapters</option><option value="30">30 chapters</option></select>
+<label>Chapters per episode</label><select id="chaptersPerEpisode"><option value="1">1 chapter per episode</option><option value="2" selected>2 chapters per episode</option><option value="3">3 chapters per episode</option><option value="4">4 chapters per episode</option><option value="5">5 chapters per episode</option></select>
+<div class="actions"><button onclick="generateStoryPlan()">Generate chapter plan</button><button class="secondary" onclick="useFallbackStoryPlan()">Use offline outline</button><button class="secondary" onclick="downloadStoryPlan()">Export plan JSON</button></div>
+<div class="output" id="planStatus" aria-live="polite">Your chapter and episode plan will appear here.</div>
+<div id="storyPlanOut"></div>
+</div>
 </section>
 
 <section class="page" id="characters">
@@ -131,9 +140,10 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
 </nav>
 <script src="js/storage.js"></script>
 <script src="js/ai/provider-manager.js"></script>
+<script src="js/story/story-intelligence.js"></script>
 <script>
 const KEY='manhwaFlowAI_v1';
-let state=loadState(), lastStory='', lastScenes='', lastComic='';
+let state=loadState(), lastStory='', lastScenes='', lastComic='', currentStoryPlan=null;
 const SETTINGS_KEY='manhwaFlowAI_settings_v1';
 let appSettings=loadSettings();
 function loadSettings(){try{return MangaFlowAI.cleanConfig(JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'))}catch(e){return MangaFlowAI.cleanConfig({})}}
@@ -160,6 +170,40 @@ async function generateStory(){
  }
  status.textContent=lastStory;
 }
+function getStoryPlanInput(){return{title:val('storyTitle')||'Untitled Manhwa',genre:val('genre'),language:val('lang'),protagonist:val('heroName')||'the protagonist',idea:val('idea'),blueprint:lastStory,chapterCount:Number(val('chapterCount')||10),chaptersPerEpisode:Number(val('chaptersPerEpisode')||2)}}
+async function generateStoryPlan(){
+ const input=getStoryPlanInput(),status=document.getElementById('planStatus');
+ status.textContent='Preparing structured chapter plan…';
+ try{
+  const result=await MangaFlowAI.generate(MangaFlowStory.buildPrompt(input),appSettings,message=>{status.textContent=message;});
+  currentStoryPlan=MangaFlowStory.parsePlan(result.text,input);
+  currentStoryPlan.source=result.engine+' · AI generated';
+  status.textContent='Chapter plan generated using '+result.engine+'. Review the outline and save the project to keep it.';
+ }catch(error){
+  currentStoryPlan=MangaFlowStory.createFallbackPlan(input);
+  currentStoryPlan.source='Built-in fallback · '+error.message;
+  status.textContent='AI plan unavailable. A structured offline outline was created instead. '+error.message;
+ }
+ renderStoryPlan();
+}
+function useFallbackStoryPlan(){
+ currentStoryPlan=MangaFlowStory.createFallbackPlan(getStoryPlanInput());
+ document.getElementById('planStatus').textContent='Offline outline created. It uses a reusable story structure, not an AI model.';
+ renderStoryPlan();
+}
+function renderStoryPlan(){
+ const target=document.getElementById('storyPlanOut');if(!target)return;
+ if(!currentStoryPlan||!Array.isArray(currentStoryPlan.chapters)){target.textContent='No chapter plan yet.';return}
+ const episodes=MangaFlowStory.groupEpisodes(currentStoryPlan,val('chaptersPerEpisode')||2);
+ target.innerHTML='<div class="item"><b>'+esc(currentStoryPlan.title)+'</b><div class="muted">'+esc(currentStoryPlan.source||'')+'</div><p>'+esc(currentStoryPlan.logline||'')+'</p></div>'+
+ episodes.map(ep=>'<div class="card"><h3>'+esc(ep.title)+' · Chapters '+ep.chapterStart+'–'+ep.chapterEnd+'</h3>'+
+ ep.chapters.map(ch=>'<div class="item"><b>Chapter '+ch.number+': '+esc(ch.title)+'</b><p>'+esc(ch.summary)+'</p><div class="muted"><b>Goal:</b> '+esc(ch.goal)+'<br><b>Conflict:</b> '+esc(ch.conflict)+'<br><b>Turning point:</b> '+esc(ch.turningPoint)+'<br><b>Cliffhanger:</b> '+esc(ch.cliffhanger)+'</div></div>').join('')+'</div>').join('');
+}
+function downloadStoryPlan(){
+ if(!currentStoryPlan){alert('Generate a chapter plan first.');return}
+ const payload={...currentStoryPlan,episodes:MangaFlowStory.groupEpisodes(currentStoryPlan,val('chaptersPerEpisode')||2),exportedAt:new Date().toISOString()};
+ downloadText('mangaflow-story-plan.json',JSON.stringify(payload,null,2));
+}
 function addCharacter(){const name=val('charName');if(!name){alert('Please enter a character name.');return}const c={id:val('charId')||'CHAR-'+String(state.characters.length+1).padStart(3,'0'),name,role:val('charRole'),description:val('charDesc'),locked:val('charLock')};state.characters.push(c);persist();['charName','charId','charDesc','charLock'].forEach(x=>document.getElementById(x).value='')}
 function renderCharacters(){const el=document.getElementById('characterList');if(!el)return;if(!state.characters.length){el.textContent='No characters saved yet.';return}el.innerHTML=state.characters.map((c,i)=>`<div class="item"><b>${esc(c.id)} — ${esc(c.name)}</b><div class="muted">${esc(c.role)} · ${esc(c.description)}</div><div class="muted"><b>Locked:</b> ${esc(c.locked)}</div><button class="danger" style="margin-top:7px" onclick="deleteCharacter(${i})">Delete</button></div>`).join('')}
 function deleteCharacter(i){state.characters.splice(i,1);persist()}
@@ -167,10 +211,10 @@ function breakScenes(){const raw=val('scriptInput');if(!raw){alert('Paste a scri
 function makePrompt(){const scene=val('visualScene');if(!scene){alert('Describe your scene first.');return}const chars=state.characters.map(c=>`${c.id}: ${c.name}. Appearance: ${c.description}. LOCKED DETAILS: ${c.locked}`).join('\n');const p=`Create a polished ${val('visualStyle')} illustration, ${val('ratio')}, ${val('camera')}.\n\nSCENE: ${scene}\nCHARACTER REFERENCE: ${val('visualChar')||'No named character supplied'}\n${chars?'\nCHARACTER DATABASE — preserve these designs exactly:\n'+chars:''}\n\nART DIRECTION: clean confident line art, expressive faces, detailed environment, cinematic composition, controlled dramatic lighting, rich readable colors, professional webtoon finish.\n\nCONTINUITY RULES: preserve character age, facial structure, hairstyle, eye color, body proportions, costume and identifying marks. Do not add unlisted characters or props. Keep anatomy natural and hands well formed.\n\nNEGATIVE GUIDANCE: photorealism, 3D render, CGI, inconsistent costume, duplicate characters, extra limbs, distorted hands, random text, watermark, logo.`;document.getElementById('promptOut').textContent=p}
 function makeComic(){const n=Number(val('panelCount'));const notes=val('panelNotes').split('\n').map(x=>x.trim()).filter(Boolean);document.getElementById('comicHeading').textContent=val('comicTitle')||'Comic preview';const labels=Array.from({length:n},(_,i)=>notes[i]||`Panel ${i+1} — add your scene note`);lastComic=labels.map((x,i)=>`PANEL ${i+1}: ${x}`).join('\n');document.getElementById('comicPreview').innerHTML=labels.map((x,i)=>`<div class="comic"><b>${i+1}. ${esc(x)}</b></div>`).join('')}
 function downloadComicText(){if(!lastComic){makeComic()}downloadText('comic-panels.txt',lastComic)}
-function collectProject(){return{title:val('projectName')||val('storyTitle')||'Untitled project',storyTitle:val('storyTitle'),genre:val('genre'),language:val('lang'),duration:val('duration'),heroName:val('heroName'),idea:val('idea'),story:lastStory,script:val('scriptInput'),scenes:lastScenes,characters:state.characters,updated:new Date().toISOString()}}
+function collectProject(){return{title:val('projectName')||val('storyTitle')||'Untitled project',storyTitle:val('storyTitle'),genre:val('genre'),language:val('lang'),duration:val('duration'),heroName:val('heroName'),idea:val('idea'),story:lastStory,storyPlan:currentStoryPlan,script:val('scriptInput'),scenes:lastScenes,characters:state.characters,updated:new Date().toISOString()}}
 function saveCurrent(){const p=collectProject();const idx=state.projects.findIndex(x=>x.title===p.title);if(idx>=0)state.projects[idx]=p;else state.projects.unshift(p);persist();alert('Project saved on this device. Export a backup to keep a copy.')}
 function renderProjects(){const el=document.getElementById('projectList');if(!el)return;if(!state.projects.length){el.textContent='No saved projects yet.';return}el.innerHTML=state.projects.map((p,i)=>`<div class="item"><b>${esc(p.title)}</b><div class="muted">${esc(p.genre||'No genre')} · ${esc(p.updated||'')}</div><div class="actions"><button onclick="loadProject(${i})">Open</button><button class="danger" onclick="deleteProject(${i})">Delete</button></div></div>`).join('')}
-function loadProject(i){const p=state.projects[i];['storyTitle','genre','lang','duration','heroName','idea','scriptInput','projectName'].forEach((id,j)=>{const keys=['storyTitle','genre','language','duration','heroName','idea','script','title'];if(document.getElementById(id)&&p[keys[j]]!==undefined)document.getElementById(id).value=p[keys[j]]});lastStory=p.story||'';lastScenes=p.scenes||'';document.getElementById('storyOut').textContent=lastStory||'No story saved.';document.getElementById('sceneOut').textContent=lastScenes||'No scenes saved.';showPage('story');alert('Project loaded.')}
+function loadProject(i){const p=state.projects[i];['storyTitle','genre','lang','duration','heroName','idea','scriptInput','projectName'].forEach((id,j)=>{const keys=['storyTitle','genre','language','duration','heroName','idea','script','title'];if(document.getElementById(id)&&p[keys[j]]!==undefined)document.getElementById(id).value=p[keys[j]]});lastStory=p.story||'';lastScenes=p.scenes||'';currentStoryPlan=p.storyPlan||null;document.getElementById('storyOut').textContent=lastStory||'No story saved.';document.getElementById('sceneOut').textContent=lastScenes||'No scenes saved.';renderStoryPlan();showPage('story');alert('Project loaded.')}
 function deleteProject(i){if(confirm('Delete this project?')){state.projects.splice(i,1);persist()}}
 function exportAll(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='manhwa-flow-backup.json';a.click();URL.revokeObjectURL(a.href)}
 function importAll(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.projects)||!Array.isArray(d.characters))throw Error();state=d;persist();alert('Backup imported.')}catch(err){alert('This backup file is not valid.')}};r.readAsText(f);e.target.value=''}
