@@ -18,7 +18,8 @@ jobs:
           node --check js/ai/provider-manager.js
           node --check js/story/story-intelligence.js
           node --check js/story/story-bible.js
-          node --test js/story/story-intelligence.test.js js/story/story-bible.test.js
+          node --check js/scenes/scene-intelligence.js
+          node --test js/story/story-intelligence.test.js js/story/story-bible.test.js js/scenes/scene-intelligence.test.js
       - name: Check inline application JavaScript
         run: |
           node -e "const fs=require('fs'); const html=fs.readFileSync('index.html','utf8'); const blocks=[...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)].map(m=>m[1]).filter(s=>s.trim()); if(!blocks.length) throw new Error('No inline application script found'); blocks.forEach((s,i)=>fs.writeFileSync('/tmp/mangaflow-inline-'+i+'.js',s));"
