@@ -182,3 +182,21 @@ The Video Studio connects scene planning, comic artwork and generated/uploaded a
 ### Video Studio limitations
 
 The current exporter produces **WebM**, not MP4. MP4 encoding is not implemented because browser support and codec availability vary; use a desktop encoder such as FFmpeg to convert WebM to MP4 if needed. Video export requires a modern browser with Canvas captureStream, MediaRecorder and (for audio mixing) Web Audio support. Audio tracks whose local asset is missing are skipped. The browser exporter limits a single render to 10 minutes to reduce memory and stability problems. Export performance depends on device hardware, resolution and frame rate. The timeline is a basic scene-based editor, not a full nonlinear editor: it does not yet provide frame-accurate trimming, waveform editing, professional color grading, transitions beyond cut/fade, or multitrack audio mastering. Test long projects in short segments first.
+
+
+## Phase 2.8 — Stability, backups and offline support
+
+The stabilization stage adds regression checks and safer browser persistence across the project.
+
+- Normalize saved project records when opening or importing them. Older project backups without comic, audio or video fields are migrated to safe empty defaults while preserving their story content.
+- Validate imported JSON backups before replacing current data. Invalid files and backups above 25 MB are rejected without changing the current project state.
+- Export backups with a version and timestamp. The backup retains the existing top-level project and Story Bible arrays for compatibility.
+- Handle browser LocalStorage quota errors and show a storage status message instead of allowing a save exception to break the interface.
+- Validate IndexedDB binary assets, reject empty files and files larger than 50 MB, and close database connections cleanly when a schema change is requested.
+- Limit audio queue imports to the supported 300 items and guard against an upload finishing after its queue item has changed.
+- Precache the app HTML, JavaScript modules, icons and manifest in the service worker. Network-first navigation and cache-first static assets improve offline reopening after the first successful installation.
+- Expand automated checks for provider fallback, backup migration, asset validation, duplicate HTML IDs, script references, module load order and service-worker precache coverage.
+
+### Stability limitations
+
+The application remains a browser-only PWA. LocalStorage and IndexedDB data are device/browser-specific; JSON backups do not include large artwork/audio blobs. Browser storage quotas vary by device and browser, and the 50 MB per-file limit does not guarantee that a device has enough remaining storage. Offline mode can use the precached application shell and modules, but online AI, image generation and remote TTS still require a network connection. This stage adds automated regression checks, not a complete cross-browser manual QA campaign.
