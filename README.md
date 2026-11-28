@@ -115,3 +115,23 @@ Scene Breakdown now supports an AI-assisted scene planner that uses the Story Bi
 ### Scene and artwork limitations
 
 The scene planner prepares structured scene data and prompts; it does not generate finished images. Actual image generation requires a connected image-generation provider or a separately hosted model. AI-generated scene links and visual details must be reviewed before production. Manual editing of individual scene records and full visual asset generation are not included in this stage.
+
+
+## Phase 2.5 — Comic storyboard studio
+
+The Comic Creator has been upgraded from a static panel preview to an editable multi-page storyboard editor.
+
+- Create multiple pages and organize them by chapter/episode.
+- Choose page layouts: single cinematic panel, two-column grid, wide top panel, three-panel or four-panel grid.
+- Build pages automatically from the current scene plan (four scenes per page), or add scenes individually.
+- Link each panel to a known scene and edit its visual description and camera framing.
+- Add speaker names, dialogue bubbles, narration boxes and sound-effect text.
+- Reorder panels and remove panels/pages.
+- Preview the current page with its layout, dialogue, narration and effects.
+- Export a readable storyboard text file or structured comic storyboard JSON.
+- Save and restore comic pages inside project saves. Older project records without comic pages remain supported.
+- Automated tests cover page creation, scene linking, field normalization and text export.
+
+### Comic studio limitations
+
+The preview is a browser-rendered storyboard mock-up using text and placeholder panel backgrounds. It does not create finished illustrations, speech lettering in artwork, or print-ready comic images. Panel editing is currently field-based; image asset placement and drag-and-drop resizing are not implemented.
