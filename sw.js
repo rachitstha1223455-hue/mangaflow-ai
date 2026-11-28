@@ -1,5 +1,5 @@
 /* Offline-first service worker for the static GitHub Pages app. */
-const CACHE = 'manhwa-flow-v3';
+const CACHE = 'manhwa-flow-v4';
 const PRECACHE = [
   './index.html',
   './manifest.json',
