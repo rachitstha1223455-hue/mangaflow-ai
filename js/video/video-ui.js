@@ -327,12 +327,37 @@
   }
   function setVideoMasterVolume(value){const t=ensureTimeline();t.masterVolume=Math.max(0,Math.min(1,Number(value)||0));videoTimeline=t;if($('videoMasterVolumeLabel'))$('videoMasterVolumeLabel').textContent=Math.round(t.masterVolume*100)+'%';}
   async function renderAudioWaveforms(){
-    const t=ensureTimeline(),AudioCtor=global.AudioContext||global.webkitAudioContext;if(!AudioCtor||!global.MangaFlowStorage)return;
-    for(let i=0;i<t.audioTracks.length;i++){const track=t.audioTracks[i],canvas=$('audio-waveform-'+i);if(!canvas||!track.audioAssetId)continue;
-      try{const record=await MangaFlowStorage.getAsset(track.audioAssetId);if(!record||!record.blob)continue;const ctx=new AudioCtor();const buffer=await ctx.decodeAudioData(await record.blob.arrayBuffer());const data=buffer.getChannelData(0),g=canvas.getContext('2d'),bars=100,step=Math.max(1,Math.floor(data.length/bars));g.clearRect(0,0,canvas.width,canvas.height);g.fillStyle='#8ea4ff';
-        for(let n=0;n<bars;n++){let peak=0;for(let j=0;j<step;j++)peak=Math.max(peak,Math.abs(data[n*step+j]||0));const h=Math.max(2,peak*(canvas.height-8));g.fillRect(n*(canvas.width/bars), (canvas.height-h)/2,Math.max(1,canvas.width/bars-2),h)}
-        const start=Math.min(1,(track.trimStart||0)/buffer.duration),end=track.trimEnd>track.trimStart?Math.min(1,track.trimEnd/buffer.duration):1;g.fillStyle='rgba(255,255,255,.24)';g.fillRect(0,0,start*canvas.width,canvas.height);g.fillRect(end*canvas.width,0,(1-end)*canvas.width,canvas.height);await ctx.close();
-      }catch(error){const g=canvas.getContext('2d');g.fillStyle='#aab3ca';g.font='12px system-ui';g.fillText('Waveform unavailable for this audio format',8,32)}
+    const t=ensureTimeline(),AudioCtor=global.AudioContext||global.webkitAudioContext;
+    if(!AudioCtor||!global.MangaFlowStorage)return;
+    for(let i=0;i<t.audioTracks.length;i++){
+      const track=t.audioTracks[i],canvas=$('audio-waveform-'+i);
+      if(!canvas||!track.audioAssetId)continue;
+      let audioContext=null;
+      try{
+        const record=await MangaFlowStorage.getAsset(track.audioAssetId);
+        if(!record||!record.blob)continue;
+        audioContext=new AudioCtor();
+        const buffer=await audioContext.decodeAudioData(await record.blob.arrayBuffer());
+        if(!buffer.duration||!buffer.length)throw new Error('Audio contains no decodable samples.');
+        const data=buffer.getChannelData(0),g=canvas.getContext('2d'),bars=100,step=Math.max(1,Math.floor(data.length/bars));
+        g.clearRect(0,0,canvas.width,canvas.height);g.fillStyle='#8ea4ff';
+        for(let n=0;n<bars;n++){
+          let peak=0;
+          for(let j=0;j<step;j++)peak=Math.max(peak,Math.abs(data[n*step+j]||0));
+          const h=Math.max(2,peak*(canvas.height-8));
+          g.fillRect(n*(canvas.width/bars),(canvas.height-h)/2,Math.max(1,canvas.width/bars-2),h);
+        }
+        const trimStart=Math.min(1,(track.trimStart||0)/buffer.duration);
+        const trimEnd=track.trimEnd>track.trimStart?Math.min(1,track.trimEnd/buffer.duration):1;
+        g.fillStyle='rgba(255,255,255,.24)';
+        g.fillRect(0,0,trimStart*canvas.width,canvas.height);
+        g.fillRect(trimEnd*canvas.width,0,(1-trimEnd)*canvas.width,canvas.height);
+      }catch(error){
+        const g=canvas.getContext('2d');
+        if(g){g.clearRect(0,0,canvas.width,canvas.height);g.fillStyle='#aab3ca';g.font='12px system-ui';g.fillText('Waveform unavailable for this audio format',8,32);}
+      }finally{
+        if(audioContext)try{await audioContext.close();}catch(_){}
+      }
     }
   }
   function exportVideoJSON(){downloadText('mangaflow-video-timeline.json',JSON.stringify(MangaFlowVideo.normalizeTimeline(ensureTimeline()),null,2))}
