@@ -35,11 +35,13 @@ test('rejects duplicate ZIP entry names before reading the manifest assets',asyn
   {id:'second',name:'second.bin',blob:new Blob(['two'])}
  ]);
  const bytes=new Uint8Array(await zip.arrayBuffer()),view=new DataView(bytes.buffer);
- const firstNameLength=view.getUint16(26,true),firstExtraLength=view.getUint16(28,true),firstSize=view.getUint32(18,true);
- const secondOffset=30+firstNameLength+firstExtraLength+firstSize;
- const secondNameLength=view.getUint16(secondOffset+26,true);
+ const entryEnd=offset=>offset+30+view.getUint16(offset+26,true)+view.getUint16(offset+28,true)+view.getUint32(offset+18,true);
+ const firstAssetOffset=entryEnd(0);
+ const secondAssetOffset=entryEnd(firstAssetOffset);
+ const firstNameLength=view.getUint16(firstAssetOffset+26,true);
+ const secondNameLength=view.getUint16(secondAssetOffset+26,true);
  assert.equal(firstNameLength,secondNameLength);
- const firstName=bytes.slice(30,30+firstNameLength);
- bytes.set(firstName,secondOffset+30);
+ const firstName=bytes.slice(firstAssetOffset+30,firstAssetOffset+30+firstNameLength);
+ bytes.set(firstName,secondAssetOffset+30);
  await assert.rejects(()=>B.readBundle(new Blob([bytes])),/duplicate ZIP entry/);
 });
