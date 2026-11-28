@@ -39,3 +39,24 @@ test('enforces clip, caption and audio collection limits', () => {
   const many = Array.from({length:V.LIMITS.clips+5},(_,i)=>({title:'Clip '+i}));
   assert.equal(V.normalizeTimeline({clips:many}).clips.length,V.LIMITS.clips);
 });
+
+test('snaps clip and subtitle timing to the selected frame rate', () => {
+  let t=V.createTimeline({fps:24});
+  t=V.addClip(t,{startTime:1.01,duration:2.02});
+  assert.equal(t.clips[0].startTime,V.snapTime(1.01,24));
+  assert.equal(t.clips[0].duration,V.snapTime(2.02,24));
+  t=V.addCaption(t,{text:'Frame exact',startTime:1.01,endTime:2.02});
+  assert.equal(t.captions[0].startTime,V.snapTime(1.01,24));
+});
+test('supports audio source trimming, fades and master volume', () => {
+  const t=V.normalizeTimeline({masterVolume:0.7,audioTracks:[{audioAssetId:'voice',assetDuration:20,trimStart:3,trimEnd:15,fadeIn:1.5,fadeOut:2,volume:0.8}]});
+  assert.equal(t.masterVolume,0.7);
+  assert.equal(V.audioTrackDuration(t.audioTracks[0]),12);
+  assert.equal(t.audioTracks[0].fadeIn,1.5);
+  assert.equal(V.duration(t),12);
+});
+test('supports hour-long timelines without the former ten-minute render cap', () => {
+  assert.equal(V.LIMITS.renderSeconds,3600);
+  const t=V.addClip(V.createTimeline(),{duration:120});
+  assert.equal(V.duration(t),120);
+});
