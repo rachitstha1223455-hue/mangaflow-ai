@@ -45,3 +45,11 @@ test('caps untrusted collection sizes and normalizes invalid state shapes', () =
   assert.equal(data.projects.length,P.MAX_PROJECTS);
   assert.deepEqual(data.characters,[]);
 });
+
+test('does not allow imported project keys to change object prototypes', () => {
+  const source=JSON.parse('{"title":"Safe","__proto__":{"polluted":true},"constructor":{"prototype":{"polluted":true}}}');
+  const project=P.normalizeProject(source);
+  assert.equal(Object.getPrototypeOf(project),Object.prototype);
+  assert.equal({}.polluted,undefined);
+  assert.equal(project.title,'Safe');
+});
