@@ -39,8 +39,9 @@
       const store = tx.objectStore(STORE);
       let result;
       try { result = action(store); } catch (error) { try { tx.abort(); } catch (_) {} reject(error); return; }
+      if(result&&typeof result==='object'&&'onsuccess' in result)result.onerror=()=>reject(result.error||new Error('IndexedDB asset request failed.'));
       tx.oncomplete = () => resolve(result && result.result);
-      tx.onerror = () => reject(tx.error || new Error('Asset storage transaction failed.'));
+      tx.onerror = () => reject((result&&result.error)||tx.error||new Error('Asset storage transaction failed.'));
       tx.onabort = () => reject(tx.error || new Error('Asset storage transaction was cancelled.'));
     });
   }
