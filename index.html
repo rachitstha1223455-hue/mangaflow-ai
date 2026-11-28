@@ -169,16 +169,16 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
  <button data-page="prompts" onclick="showPage('prompts')">🖼️<br>Prompts</button>
  <button data-page="comic" onclick="showPage('comic')">📚<br>Comic</button>
  <button data-page="projects" onclick="showPage('projects')">🗂️<br>Projects</button><button data-page="settings" onclick="showPage('settings')">⚙️<br>Settings</button>
-</nav>
+<button data-page="audio" onclick="showPage(&quot;audio&quot;)">🎙️<br>Audio</button></nav>
 <script src="js/storage.js"></script>
 <script src="js/ai/provider-manager.js"></script>
 <script src="js/story/story-intelligence.js"></script>
 <script src="js/story/story-bible.js"></script>
 <script src="js/scenes/scene-intelligence.js"></script>
-<script src="js/comic/comic-studio.js"></script>
+<script src="js/comic/comic-studio.js"></script><script src="js/audio/audio-studio.js"></script><script src="js/audio/audio-ui.js"></script>
 <script>
 const KEY='manhwaFlowAI_v1';
-let state=loadState(), lastStory='', lastScenes='', lastComic='', currentStoryPlan=null, scenePlan=[], activeSceneIndex=-1, comicPages=[], activeComicPageIndex=0;
+let state=loadState(), lastStory='', lastScenes='', lastComic='', currentStoryPlan=null, scenePlan=[], activeSceneIndex=-1, comicPages=[], activeComicPageIndex=0, audioQueue=[], audioPlayIndex=-1, activeAudioUrl='';
 const SETTINGS_KEY='manhwaFlowAI_settings_v1';
 let appSettings=loadSettings();
 function loadSettings(){try{return MangaFlowAI.cleanConfig(JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'))}catch(e){return MangaFlowAI.cleanConfig({})}}
@@ -303,10 +303,10 @@ async function downloadComicPDF(){if(!comicPages.length){alert('Create at least 
 function downloadComicText(){const text=MangaFlowComic.toText(comicPages);downloadText('mangaflow-comic-storyboard.txt',text||'No comic pages yet.')}
 function downloadComicJSON(){downloadText('mangaflow-comic-storyboard.json',JSON.stringify({version:1,pages:MangaFlowComic.normalizePages(comicPages)},null,2))}
 
-function collectProject(){return{title:val('projectName')||val('storyTitle')||'Untitled project',storyTitle:val('storyTitle'),genre:val('genre'),language:val('lang'),duration:val('duration'),heroName:val('heroName'),idea:val('idea'),story:lastStory,storyPlan:currentStoryPlan,script:val('scriptInput'),scenes:lastScenes,scenePlan:scenePlan,comicPages:MangaFlowComic.normalizePages(comicPages),characters:state.characters,locations:state.locations,props:state.props,updated:new Date().toISOString()}}
+function collectProject(){return{title:val('projectName')||val('storyTitle')||'Untitled project',storyTitle:val('storyTitle'),genre:val('genre'),language:val('lang'),duration:val('duration'),heroName:val('heroName'),idea:val('idea'),story:lastStory,storyPlan:currentStoryPlan,script:val('scriptInput'),scenes:lastScenes,scenePlan:scenePlan,comicPages:MangaFlowComic.normalizePages(comicPages),audioQueue:MangaFlowAudio.normalizeQueue(audioQueue),characters:state.characters,locations:state.locations,props:state.props,updated:new Date().toISOString()}}
 function saveCurrent(){const p=collectProject();const idx=state.projects.findIndex(x=>x.title===p.title);if(idx>=0)state.projects[idx]=p;else state.projects.unshift(p);persist();alert('Project saved on this device. Export a backup to keep a copy.')}
 function renderProjects(){const el=document.getElementById('projectList');if(!el)return;if(!state.projects.length){el.textContent='No saved projects yet.';return}el.innerHTML=state.projects.map((p,i)=>`<div class="item"><b>${esc(p.title)}</b><div class="muted">${esc(p.genre||'No genre')} · ${esc(p.updated||'')}</div><div class="actions"><button onclick="loadProject(${i})">Open</button><button class="danger" onclick="deleteProject(${i})">Delete</button></div></div>`).join('')}
-function loadProject(i){const p=state.projects[i];['storyTitle','genre','lang','duration','heroName','idea','scriptInput','projectName'].forEach((id,j)=>{const keys=['storyTitle','genre','language','duration','heroName','idea','script','title'];if(document.getElementById(id)&&p[keys[j]]!==undefined)document.getElementById(id).value=p[keys[j]]});lastStory=p.story||'';lastScenes=p.scenes||'';currentStoryPlan=p.storyPlan||null;scenePlan=Array.isArray(p.scenePlan)?p.scenePlan:[];comicPages=MangaFlowComic.normalizePages(p.comicPages);activeComicPageIndex=0;state.characters=Array.isArray(p.characters)?p.characters:state.characters;state.locations=Array.isArray(p.locations)?p.locations:state.locations;state.props=Array.isArray(p.props)?p.props:state.props;persist();document.getElementById('storyOut').textContent=lastStory||'No story saved.';document.getElementById('sceneOut').textContent=lastScenes||'No scenes saved.';renderStoryPlan();renderScenePlan();renderComic();showPage('story');alert('Project loaded.')}
+function loadProject(i){const p=state.projects[i];['storyTitle','genre','lang','duration','heroName','idea','scriptInput','projectName'].forEach((id,j)=>{const keys=['storyTitle','genre','language','duration','heroName','idea','script','title'];if(document.getElementById(id)&&p[keys[j]]!==undefined)document.getElementById(id).value=p[keys[j]]});lastStory=p.story||'';lastScenes=p.scenes||'';currentStoryPlan=p.storyPlan||null;scenePlan=Array.isArray(p.scenePlan)?p.scenePlan:[];comicPages=MangaFlowComic.normalizePages(p.comicPages);audioQueue=MangaFlowAudio.normalizeQueue(p.audioQueue);activeComicPageIndex=0;state.characters=Array.isArray(p.characters)?p.characters:state.characters;state.locations=Array.isArray(p.locations)?p.locations:state.locations;state.props=Array.isArray(p.props)?p.props:state.props;persist();document.getElementById('storyOut').textContent=lastStory||'No story saved.';document.getElementById('sceneOut').textContent=lastScenes||'No scenes saved.';renderStoryPlan();renderScenePlan();renderComic();renderAudioQueue();showPage('story');alert('Project loaded.')}
 function deleteProject(i){if(confirm('Delete this project?')){state.projects.splice(i,1);persist()}}
 function exportAll(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='manhwa-flow-backup.json';a.click();URL.revokeObjectURL(a.href)}
 function importAll(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.projects)||!Array.isArray(d.characters))throw Error();state={projects:Array.isArray(d.projects)?d.projects:[],characters:Array.isArray(d.characters)?d.characters:[],locations:Array.isArray(d.locations)?d.locations:[],props:Array.isArray(d.props)?d.props:[]};persist();alert('Backup imported.')}catch(err){alert('This backup file is not valid.')}};r.readAsText(f);e.target.value=''}
@@ -314,7 +314,7 @@ function copyOut(id){const t=document.getElementById(id).textContent;if(navigato
 function downloadText(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const preferredLanguage=localStorage.getItem('manhwaFlowAI_language');if(preferredLanguage==='hi'||preferredLanguage==='en')document.getElementById('lang').value=preferredLanguage==='hi'?'Hindi':'English';
-renderCharacters();renderLocations();renderProps();renderProjects();renderComic();
+renderCharacters();renderLocations();renderProps();renderProjects();renderComic();renderAudioQueue();
 if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script>
 </body></html>
