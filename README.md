@@ -143,3 +143,22 @@ The Comic Creator has been upgraded from a static panel preview to an editable m
 - Artwork files remain local in IndexedDB and are not embedded in the lightweight JSON project backup. Keep original artwork files when moving a project to another device.
 
 Image generation requires a separately hosted compatible provider or proxy, network access and its own compute/billing/free quota. Without one, upload artwork files directly. Print exports are rasterized page images; professional bleed, CMYK colour management and printer crop marks are not implemented.
+
+
+## Phase 2.6 — Voice and Audio Studio
+
+The Audio Studio adds an ordered dialogue and sound queue that can be saved with each project.
+
+- Add character dialogue, narration, sound-effect and background-music tracks.
+- Import dialogue and narration text directly from comic pages.
+- Assign a speaker, Hindi/English language and provider voice ID to each text item.
+- Generate downloadable speech audio through a separately configured OpenAI-compatible `/audio/speech` endpoint. The provider must return MP3/WAV audio bytes or JSON containing base64 audio.
+- Upload existing audio files for music, sound effects or voice recordings.
+- Play audio assets in sequence, reorder and remove queue items, and download generated/uploaded clips individually.
+- Use browser speech synthesis as an optional preview fallback when no audio file exists. Browser speech preview is not a downloadable recording.
+- Save the structured audio queue with project saves and restore it from older/newer project records; export queue metadata as TXT or JSON.
+- Automated tests cover queue creation, normalization limits, audio asset references and queue export.
+
+### Audio Studio limitations
+
+Actual downloadable voice generation requires a configured TTS service or private proxy and may incur provider compute costs. No API secret is stored in the browser. Browser speech synthesis depends on voices installed by the user's operating system/browser and is only a playback fallback. The current version queues and plays clips sequentially; it does not yet mix, trim, fade, synchronize or master a multitrack soundtrack, and audio blobs remain local in IndexedDB rather than embedded in JSON backups.
