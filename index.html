@@ -107,11 +107,11 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
 </section>
 
 <section class="page" id="scenes">
- <div class="card"><h2>🎬 Scene Breakdown</h2><p>Paste a script. The local splitter creates numbered scene chunks. It does not understand story meaning like a full language model.</p>
+ <div class="card"><h2>🎬 Scene Breakdown</h2><p>Split scripts into visual beats, then use AI to organize scenes and connect them to your Story Bible. A simple offline scene splitter remains available.</p>
  <label>Script / narration</label><textarea id="scriptInput" style="min-height:190px" placeholder="Paste your story or narration here..."></textarea>
  <label>Approximate scene length</label><select id="sceneSize"><option value="500">Short (about 500 characters)</option><option value="900" selected>Medium (about 900 characters)</option><option value="1400">Long (about 1400 characters)</option></select>
  <div class="actions"><button onclick="breakScenes()">Break into scenes</button><button class="secondary" onclick="copyOut('sceneOut')">Copy result</button></div></div>
- <div class="card"><h3>Scene list</h3><div id="sceneOut" class="output">Your scenes will appear here.</div></div>
+ <div class="card"><h3>Scene list</h3><div id="sceneOut" class="output">Your scenes will appear here.</div></div><div class="card"><h2>Intelligent Scene Planner</h2><label>Chapter / sequence title</label><input id="sceneChapterTitle" placeholder="Chapter 1 — The First Sign"><div class="actions"><button onclick="generateScenePlan()">Generate intelligent scenes</button><button class="secondary" onclick="createOfflineScenePlan()">Create offline scene plan</button><button class="secondary" onclick="downloadScenePlan()">Export scene plan JSON</button></div><div class="output" id="scenePlanStatus">No intelligent scene plan yet.</div><div id="scenePlanOut"></div></div>
 </section>
 
 <section class="page" id="prompts">
@@ -122,7 +122,7 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
  <label>Aspect ratio</label><select id="ratio"><option>16:9 landscape</option><option>9:16 portrait</option><option>1:1 square</option><option>3:4 portrait</option></select>
  <label>Camera framing</label><select id="camera"><option>Cinematic wide shot</option><option>Medium shot</option><option>Close-up portrait</option><option>Extreme close-up</option><option>Over-the-shoulder shot</option><option>Low-angle dramatic shot</option></select>
  <div class="actions"><button onclick="makePrompt()">Generate image prompt</button></div></div>
- <div class="card"><h3>Ready-to-copy prompt</h3><div class="output" id="promptOut">Your image prompt will appear here.</div><div class="actions"><button class="secondary" onclick="copyOut('promptOut')">Copy prompt</button></div></div>
+ <div class="card"><p class="muted">Choose a scene from Scene Breakdown to prepare a continuity-aware artwork prompt. This builds prompts; it does not render images.</p><div class="actions"><button class="secondary" onclick="useSelectedSceneForPrompt()">Use selected scene</button></div><h3>Ready-to-copy prompt</h3><div class="output" id="promptOut">Your image prompt will appear here.</div><div class="actions"><button class="secondary" onclick="copyOut('promptOut')">Copy prompt</button></div></div>
 </section>
 
 <section class="page" id="comic">
@@ -168,9 +168,10 @@ button.secondary{background:#29324d;color:var(--text);border:1px solid var(--lin
 <script src="js/ai/provider-manager.js"></script>
 <script src="js/story/story-intelligence.js"></script>
 <script src="js/story/story-bible.js"></script>
+<script src="js/scenes/scene-intelligence.js"></script>
 <script>
 const KEY='manhwaFlowAI_v1';
-let state=loadState(), lastStory='', lastScenes='', lastComic='', currentStoryPlan=null;
+let state=loadState(), lastStory='', lastScenes='', lastComic='', currentStoryPlan=null, scenePlan=[], activeSceneIndex=-1;
 const SETTINGS_KEY='manhwaFlowAI_settings_v1';
 let appSettings=loadSettings();
 function loadSettings(){try{return MangaFlowAI.cleanConfig(JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'))}catch(e){return MangaFlowAI.cleanConfig({})}}
