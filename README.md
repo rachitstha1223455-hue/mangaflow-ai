@@ -39,7 +39,7 @@ This branch adds the first hybrid-AI and storage foundations while keeping the o
 - The existing built-in story blueprint remains the fallback when no provider is configured or a request fails.
 - Provider settings are stored locally, but API secrets are deliberately not collected or stored in browser JavaScript.
 - An IndexedDB asset-store helper is available for future large media assets; existing project and character records continue using the original LocalStorage key for compatibility.
-- Story generation already offers Hindi and English as task-level language choices. The settings page also saves a preferred language value; complete interface translation is not implemented yet.
+- Story generation already offers Hindi and English as task-level language choices. The settings page also saves a preferred language value; complete interface translation is not implemented yet. The saved preference selects the initial Hindi or English value in the Story Generator; individual stories can still choose either language.
 
 ### Configure AI providers
 
