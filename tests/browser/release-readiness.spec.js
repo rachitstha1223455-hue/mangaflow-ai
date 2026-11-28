@@ -125,16 +125,18 @@ test('mobile-sized viewport keeps the app usable without page-wide horizontal ov
 test('short browser video render creates a non-empty downloadable media file', async ({ page }, testInfo) => {
   test.setTimeout(120000);
   test.skip(testInfo.project.name!=='chromium','MediaRecorder canvas export is exercised in Chromium CI.');
+  await page.addInitScript(()=>{window.FFmpegWASM={FFmpeg:class{on(){}async load(){}async writeFile(){}async exec(){}async readFile(){const data=new Uint8Array(2048);data.set([0,0,0,24,102,116,121,112,105,115,111,109]);return data;}},toBlobURL:async url=>url};});
   await page.goto('/');
   await page.getByRole('button',{name:/Video/}).click();
   await page.evaluate(()=>{
     videoTimeline=MangaFlowVideo.addClip(MangaFlowVideo.createTimeline(),{title:'QA clip',visual:'Short automated browser test',duration:1});
     renderVideoStudio();
   });
-  const downloadPromise=page.waitForEvent('download',{timeout:110000});
+  const downloadPromise=page.waitForEvent('download',{timeout:20000});
   await page.getByRole('button',{name:'Export MP4 / WebM'}).click();
   const download=await downloadPromise;
   const file=fs.readFileSync(await download.path());
   expect(file.length).toBeGreaterThan(1000);
-  expect(download.suggestedFilename()).toMatch(/\.mp4$|\.webm$/);
+  expect(download.suggestedFilename()).toMatch(/\.mp4$/);
+  expect(file.subarray(4,8).toString()).toBe('ftyp');
 });
