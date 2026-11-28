@@ -149,6 +149,32 @@ test('mobile-sized viewport keeps the app usable without page-wide horizontal ov
   expect(dimensions.nav).toBeGreaterThan(0);
 });
 
+
+test('storyboard artwork, narration audio and subtitles form a persistent video timeline', async ({ page }) => {
+  await page.goto('/');
+  const result=await page.evaluate(async()=>{
+    await MangaFlowStorage.putAsset({id:'pipeline-art',projectId:'Pipeline QA',blob:new Blob(['artwork-bytes'],{type:'image/png'}),type:'image/png',name:'panel.png'});
+    await MangaFlowStorage.putAsset({id:'pipeline-voice',projectId:'Pipeline QA',blob:new Blob(['audio-bytes'],{type:'audio/mpeg'}),type:'audio/mpeg',name:'voice.mp3'});
+    let timeline=MangaFlowVideo.createTimeline({fps:30});
+    timeline=MangaFlowVideo.addClip(timeline,{sourceType:'panel',sourceId:'PANEL-1',title:'Opening panel',imageAssetId:'pipeline-art',duration:4});
+    timeline=MangaFlowVideo.addClip(timeline,{sourceType:'scene',sourceId:'SCENE-2',title:'Second scene',duration:6});
+    timeline=MangaFlowVideo.addAudioTrack(timeline,{audioAssetId:'pipeline-voice',kind:'narration',startTime:0,duration:7,assetDuration:7,volume:0.8});
+    timeline=MangaFlowVideo.addCaption(timeline,{text:'नमस्ते दुनिया',language:'Hindi',startTime:0,endTime:4});
+    videoTimeline=timeline;
+    localStorage.setItem('manhwaFlowAI_v1',JSON.stringify({projects:[{title:'Pipeline QA',videoTimeline:timeline}],characters:[],locations:[],props:[]}));
+    return {duration:MangaFlowVideo.duration(timeline),srt:MangaFlowVideo.toSRT(timeline),clips:timeline.clips.length,audio:timeline.audioTracks.length,caption:timeline.captions.length};
+  });
+  expect(result).toEqual({duration:10,srt:'1\\n00:00:00,000 --> 00:00:04,000\\nनमस्ते दुनिया',clips:2,audio:1,caption:1});
+  await page.reload();
+  const restored=await page.evaluate(async()=>{
+    const state=JSON.parse(localStorage.getItem('manhwaFlowAI_v1'));
+    const image=await MangaFlowStorage.getAsset('pipeline-art');
+    const voice=await MangaFlowStorage.getAsset('pipeline-voice');
+    return {title:state.projects[0].title,clips:state.projects[0].videoTimeline.clips.length,audio:state.projects[0].videoTimeline.audioTracks.length,image:await image.blob.text(),voice:await voice.blob.text()};
+  });
+  expect(restored).toEqual({title:'Pipeline QA',clips:2,audio:1,image:'artwork-bytes',voice:'audio-bytes'});
+});
+
 test('short browser video render creates a non-empty downloadable media file', async ({ page }, testInfo) => {
   test.setTimeout(120000);
   test.skip(testInfo.project.name!=='chromium','MediaRecorder canvas export is exercised in Chromium CI.');
